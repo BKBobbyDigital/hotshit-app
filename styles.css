@@ -365,10 +365,10 @@ body {
 
 /* Hardware keys */
 .hardware {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
   gap: 8px;
 }
+.hardware .key { flex: 1; }
 .key {
   appearance: none;
   font: inherit;
