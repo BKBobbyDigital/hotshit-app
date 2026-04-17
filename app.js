@@ -81,6 +81,7 @@ const state = {
   category: null,
   coords: null,
   results: [],
+  selected: 0,
 };
 
 /* --- routing --- */
@@ -255,7 +256,7 @@ const views = {
       { n: 1, label: '◀ BACK', onClick: () => go('categories') },
       { n: 2, label: '↺ ROLL', primary: true, onClick: () => pickCategory(state.category) },
       { n: 3, label: '♥', onClick: () => {} },
-      { n: 4, label: 'MAP', onClick: () => openMap(state.results[0]) },
+      { n: 4, label: 'MAP', onClick: () => openMap(state.results[state.selected]) },
     ],
   },
 
@@ -285,8 +286,13 @@ const views = {
 };
 
 function resultCard(r, i) {
-  const inverse = i === 0;
-  return el('article', { class: 'card' + (inverse ? ' inverse' : '') },
+  const inverse = state.selected === i;
+  return el('button', {
+    class: 'card' + (inverse ? ' inverse' : ''),
+    type: 'button',
+    'aria-pressed': inverse ? 'true' : 'false',
+    onClick: () => selectResult(i),
+  },
     el('div', { class: 'card-tag' }, String(i + 1).padStart(2, '0')),
     el('div', { class: 'card-head' },
       el('div', { class: 'card-name' }, r.name.toUpperCase()),
@@ -298,6 +304,11 @@ function resultCard(r, i) {
       ...r.buzz.map((b) => el('span', { class: 'buzz' }, b)),
     ),
   );
+}
+
+function selectResult(i) {
+  state.selected = i;
+  render();
 }
 
 function categoryEmoji(label) {
@@ -345,6 +356,7 @@ function skipLocation() {
 
 function pickCategory(label) {
   state.category = label;
+  state.selected = 0;
   go('loading');
   const minWait = 1600 + Math.random() * 600;
   setTimeout(() => {
