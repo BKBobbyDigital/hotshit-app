@@ -138,10 +138,7 @@ const views = {
       ),
     ),
     keys: () => [
-      { n: 1, label: '◀', disabled: true },
-      { n: 2, label: '▶ FIND', primary: true, onClick: requestLocation },
-      { n: 3, label: '🎲', onClick: () => pickCategory('Random') },
-      { n: 4, label: '?', onClick: showHelp },
+      { n: 1, label: 'FIND 🔥💩', primary: true, onClick: requestLocation },
     ],
   },
 
