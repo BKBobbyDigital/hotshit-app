@@ -163,7 +163,6 @@ const views = {
       { n: 1, label: 'NOPE', onClick: () => skipLocation() },
       { n: 2, label: 'ALLOW', primary: true, onClick: requestLocation },
       { n: 3, label: 'ZIP', disabled: true },
-      { n: 4, label: '?', onClick: showHelp },
     ],
   },
 
@@ -232,7 +231,6 @@ const views = {
       { n: 1, label: '◀ BACK', onClick: () => go('landing') },
       { n: 2, label: '🎲 RNDM', primary: true, onClick: () => pickCategory('Random') },
       { n: 3, label: '↻', icon: true, onClick: () => go('categories') },
-      { n: 4, label: '?', icon: true, onClick: showHelp },
     ],
   },
 
@@ -369,10 +367,6 @@ function openMap(r) {
   if (!r) return;
   const q = encodeURIComponent(`${r.name} ${r.addr}`);
   window.open(`https://maps.google.com/?q=${q}`, '_blank', 'noopener');
-}
-
-function showHelp() {
-  alert('Hot Shit serves up the best stuff nearby. No menus. No stars. Just go.');
 }
 
 /* --- boot --- */
