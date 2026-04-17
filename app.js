@@ -104,9 +104,9 @@ function render() {
   for (const k of view.keys()) hardware.append(keyEl(k));
 }
 
-function keyEl({ n, label, onClick, primary, disabled }) {
+function keyEl({ n, label, onClick, primary, disabled, icon }) {
   return el('button', {
-    class: 'key' + (primary ? ' primary' : ''),
+    class: 'key' + (primary ? ' primary' : '') + (icon ? ' icon' : ''),
     type: 'button',
     disabled: !!disabled,
     onClick,
@@ -232,8 +232,8 @@ const views = {
     keys: () => [
       { n: 1, label: '◀ BACK', onClick: () => go('landing') },
       { n: 2, label: '🎲 RNDM', primary: true, onClick: () => pickCategory('Random') },
-      { n: 3, label: '↻', onClick: () => go('categories') },
-      { n: 4, label: '?', onClick: showHelp },
+      { n: 3, label: '↻', icon: true, onClick: () => go('categories') },
+      { n: 4, label: '?', icon: true, onClick: showHelp },
     ],
   },
 

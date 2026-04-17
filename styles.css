@@ -209,37 +209,41 @@ body {
 .cat-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  gap: 10px;
   flex: 1;
   align-content: start;
 }
 .cat {
   appearance: none;
-  border: 1.75px solid var(--ink);
+  border: 2px solid var(--ink);
   background: transparent;
   color: var(--ink);
   font: inherit;
-  border-radius: 3px;
-  padding: 10px 10px;
+  border-radius: 4px;
+  padding: 18px 14px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   position: relative;
   cursor: pointer;
   text-align: left;
   transition: transform 0.05s ease;
+  min-height: 64px;
 }
 .cat-num {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
+  font-size: 11px;
   opacity: 0.7;
   font-weight: 700;
+  position: absolute;
+  top: 5px;
+  left: 8px;
 }
-.cat-emoji { font-size: 22px; line-height: 1; }
+.cat-emoji { font-size: 32px; line-height: 1; }
 .cat-label {
   font-family: 'Archivo Black', sans-serif;
-  font-size: 13px;
-  letter-spacing: 0.4px;
+  font-size: 17px;
+  letter-spacing: 0.6px;
 }
 .cat:active,
 .cat.is-active {
@@ -388,6 +392,12 @@ body {
 .key.primary {
   background: var(--accent);
   color: #fff;
+}
+.key.icon {
+  font-size: 26px;
+  line-height: 1;
+  padding-top: 20px;
+  padding-bottom: 14px;
 }
 .key.primary .num { color: #fff; opacity: 0.9; }
 .key:disabled {
