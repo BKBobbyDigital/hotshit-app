@@ -406,6 +406,17 @@ body {
   padding-top: 20px;
   padding-bottom: 14px;
 }
+.key.xl {
+  font-size: 26px;
+  letter-spacing: 0.06em;
+  padding: 32px 10px 26px;
+  min-height: 88px;
+}
+.key.xl .num {
+  font-size: 13px;
+  top: 7px;
+  left: 11px;
+}
 .key.primary .num { color: #fff; opacity: 0.9; }
 .key:disabled {
   opacity: 0.4;
