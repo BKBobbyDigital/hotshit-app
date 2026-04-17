@@ -9,9 +9,17 @@
   --grid: rgba(26, 26, 26, 0.07);
   --shadow-key: 3px 3px 0 var(--ink);
   --shadow-key-down: 1px 1px 0 var(--ink);
+  --pad-lcd: clamp(12px, 3.5vw, 18px);
+  --pad-device: clamp(10px, 3vw, 18px);
+  --gap-device: clamp(8px, 2.5vw, 12px);
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 
 html, body {
   margin: 0;
@@ -52,8 +60,8 @@ body {
   max-width: 460px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+  gap: var(--gap-device);
+  padding: var(--pad-device) var(--pad-device) calc(var(--pad-device) + env(safe-area-inset-bottom));
   min-height: 100dvh;
 }
 
@@ -64,14 +72,14 @@ body {
   justify-content: space-between;
   padding: 2px 4px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 15px;
+  font-size: clamp(12px, 3.3vw, 16px);
   font-weight: 700;
   letter-spacing: 0.08em;
 }
-.status-leds { display: flex; gap: 5px; }
+.status-leds { display: flex; gap: clamp(3px, 1.2vw, 6px); }
 .led {
-  width: 11px;
-  height: 11px;
+  width: clamp(9px, 2.6vw, 12px);
+  height: clamp(9px, 2.6vw, 12px);
   border: 1.75px solid var(--ink);
   background: transparent;
 }
@@ -80,7 +88,7 @@ body {
 .led-blink { animation: blink 1s steps(2, end) infinite; }
 @keyframes blink { 50% { background: transparent; } }
 
-/* LCD — dominates the screen */
+/* LCD */
 .lcd {
   flex: 1;
   position: relative;
@@ -103,11 +111,11 @@ body {
   position: relative;
   z-index: 2;
   height: 100%;
-  padding: 14px 14px 12px;
+  padding: var(--pad-lcd);
   font-family: 'JetBrains Mono', monospace;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: clamp(6px, 2vw, 10px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -116,7 +124,7 @@ body {
 /* Generic LCD bits */
 .prompt {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 15px;
+  font-size: clamp(12px, 3.3vw, 16px);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -125,7 +133,7 @@ body {
 .divider {
   height: 2px;
   background: var(--ink);
-  width: 56px;
+  width: clamp(42px, 13vw, 64px);
   margin: 6px 0;
 }
 .hr {
@@ -137,21 +145,21 @@ body {
 
 .title-xl {
   font-family: 'Archivo Black', sans-serif;
-  font-size: clamp(64px, 19vw, 104px);
+  font-size: clamp(52px, 18vw, 104px);
   line-height: 0.86;
   letter-spacing: -2.5px;
   margin: 0;
 }
 .title-lg {
   font-family: 'Archivo Black', sans-serif;
-  font-size: clamp(28px, 9vw, 40px);
+  font-size: clamp(28px, 9vw, 44px);
   line-height: 0.92;
   letter-spacing: -0.8px;
   margin: 0;
 }
 .title-md {
   font-family: 'Archivo Black', sans-serif;
-  font-size: clamp(20px, 6vw, 26px);
+  font-size: clamp(18px, 5.8vw, 28px);
   line-height: 1;
   letter-spacing: -0.4px;
   margin: 0;
@@ -159,12 +167,12 @@ body {
 
 .lede {
   font-family: 'Kalam', cursive;
-  font-size: 16px;
+  font-size: clamp(14px, 4vw, 18px);
   line-height: 1.3;
 }
 .lcd-copy {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 18px;
+  font-size: clamp(14px, 4.3vw, 20px);
   font-weight: 500;
   line-height: 1.35;
   letter-spacing: 0.01em;
@@ -175,12 +183,12 @@ body {
 /* LCD bar (loading) */
 .bar {
   display: flex;
-  gap: 3px;
+  gap: clamp(2px, 0.8vw, 4px);
   width: 100%;
 }
 .bar-cell {
   flex: 1;
-  height: 18px;
+  height: clamp(12px, 4vw, 20px);
   border: 2px solid var(--ink);
   background: transparent;
 }
@@ -190,11 +198,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  height: 88px;
+  gap: clamp(3px, 1vw, 5px);
+  height: clamp(56px, 18vw, 96px);
 }
 .wave-bar {
-  width: 6px;
+  width: clamp(4px, 1.4vw, 7px);
   background: var(--ink);
   animation: pulse 0.9s ease-in-out infinite;
 }
@@ -205,11 +213,11 @@ body {
   50% { transform: scaleY(1); }
 }
 
-/* Categories — LCD-native: outline buttons, inverse on press */
+/* Categories */
 .cat-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  gap: clamp(6px, 2.2vw, 12px);
   flex: 1;
   align-content: start;
 }
@@ -220,30 +228,33 @@ body {
   color: var(--ink);
   font: inherit;
   border-radius: 4px;
-  padding: 18px 14px;
+  padding: clamp(12px, 3.8vw, 20px) clamp(10px, 3vw, 16px);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: clamp(8px, 2.5vw, 14px);
   position: relative;
   cursor: pointer;
   text-align: left;
   transition: transform 0.05s ease;
-  min-height: 64px;
+  min-height: clamp(52px, 15vw, 72px);
 }
 .cat-num {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: clamp(9px, 2.5vw, 12px);
   opacity: 0.7;
   font-weight: 700;
   position: absolute;
-  top: 5px;
-  left: 8px;
+  top: clamp(3px, 1.2vw, 6px);
+  left: clamp(6px, 2vw, 10px);
 }
-.cat-emoji { font-size: 32px; line-height: 1; }
+.cat-emoji {
+  font-size: clamp(22px, 7vw, 36px);
+  line-height: 1;
+}
 .cat-label {
   font-family: 'Archivo Black', sans-serif;
-  font-size: 17px;
-  letter-spacing: 0.6px;
+  font-size: clamp(13px, 4.1vw, 19px);
+  letter-spacing: 0.5px;
 }
 .cat:active,
 .cat.is-active {
@@ -256,12 +267,12 @@ body {
   filter: grayscale(1) contrast(1.4) brightness(1.5);
 }
 
-/* Result cards — LCD-native, first one inverse */
+/* Result cards */
 .results {
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  margin-top: 28px;
+  gap: clamp(16px, 5vw, 26px);
+  margin-top: clamp(18px, 5.5vw, 32px);
 }
 .card {
   appearance: none;
@@ -269,7 +280,7 @@ body {
   font: inherit;
   border: 2px solid var(--ink);
   border-radius: 4px;
-  padding: 18px 18px 18px;
+  padding: clamp(14px, 4vw, 20px);
   position: relative;
   background: transparent;
   color: var(--ink);
@@ -284,11 +295,11 @@ body {
 }
 .card-tag {
   position: absolute;
-  top: -11px;
-  left: 14px;
+  top: clamp(-12px, -3vw, -9px);
+  left: clamp(10px, 3.5vw, 16px);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  letter-spacing: 1.5px;
+  font-size: clamp(10px, 3vw, 13px);
+  letter-spacing: 1.4px;
   font-weight: 700;
   padding: 2px 8px;
   border: 2px solid var(--ink);
@@ -307,26 +318,26 @@ body {
 }
 .card-name {
   font-family: 'Archivo Black', sans-serif;
-  font-size: 22px;
+  font-size: clamp(18px, 5.5vw, 24px);
   letter-spacing: -0.4px;
   line-height: 1.05;
 }
 .card-rating {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 16px;
+  font-size: clamp(13px, 4vw, 17px);
   font-weight: 700;
   white-space: nowrap;
 }
 .card-addr {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
+  font-size: clamp(10px, 3vw, 13px);
   margin-top: 6px;
   opacity: 0.85;
   letter-spacing: 0.04em;
 }
 .card-blurb {
   font-family: 'Kalam', cursive;
-  font-size: 17px;
+  font-size: clamp(14px, 4.2vw, 18px);
   margin-top: 12px;
   line-height: 1.3;
 }
@@ -338,7 +349,7 @@ body {
 }
 .buzz {
   font-family: 'Space Mono', monospace;
-  font-size: 11px;
+  font-size: clamp(9px, 2.8vw, 12px);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding: 3px 8px;
@@ -366,7 +377,7 @@ body {
 /* Hardware keys */
 .hardware {
   display: flex;
-  gap: 8px;
+  gap: clamp(6px, 2vw, 10px);
 }
 .hardware .key { flex: 1; }
 .key {
@@ -376,23 +387,23 @@ body {
   border-radius: 6px;
   background: var(--paper);
   color: var(--ink);
-  padding: 22px 6px 16px;
+  padding: clamp(14px, 4.5vw, 24px) 6px clamp(10px, 3.2vw, 18px);
   position: relative;
   cursor: pointer;
   font-family: 'Archivo Black', sans-serif;
-  font-size: 17px;
+  font-size: clamp(13px, 4vw, 18px);
   letter-spacing: 0.04em;
   box-shadow: var(--shadow-key);
   transition: transform 0.06s ease, box-shadow 0.06s ease;
   text-align: center;
-  min-height: 64px;
+  min-height: clamp(54px, 15vw, 70px);
 }
 .key .num {
   position: absolute;
-  top: 5px;
-  left: 8px;
+  top: clamp(3px, 1.2vw, 6px);
+  left: clamp(6px, 2vw, 10px);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: clamp(9px, 2.4vw, 12px);
   font-weight: 700;
   opacity: 0.7;
 }
@@ -401,21 +412,19 @@ body {
   color: #fff;
 }
 .key.icon {
-  font-size: 26px;
+  font-size: clamp(20px, 6.5vw, 30px);
   line-height: 1;
-  padding-top: 20px;
-  padding-bottom: 14px;
+  padding-top: clamp(14px, 4.2vw, 22px);
+  padding-bottom: clamp(10px, 3vw, 16px);
 }
 .key.xl {
-  font-size: 26px;
+  font-size: clamp(20px, 6.5vw, 30px);
   letter-spacing: 0.06em;
-  padding: 32px 10px 26px;
-  min-height: 88px;
+  padding: clamp(22px, 6.5vw, 36px) 10px clamp(18px, 5vw, 28px);
+  min-height: clamp(70px, 20vw, 100px);
 }
 .key.xl .num {
-  font-size: 13px;
-  top: 7px;
-  left: 11px;
+  font-size: clamp(11px, 3vw, 14px);
 }
 .key.primary .num { color: #fff; opacity: 0.9; }
 .key:disabled {
@@ -436,8 +445,23 @@ body {
   to { opacity: 1; transform: none; }
 }
 
-@media (max-height: 620px) {
-  .lede { font-size: 14px; }
-  .lcd-inner { padding: 10px 12px; gap: 6px; }
-  .key { padding: 11px 4px 8px; font-size: 12px; }
+/* Short viewports (e.g. iPhone SE 667px tall in landscape-ish space) */
+@media (max-height: 720px) {
+  .title-xl { font-size: clamp(44px, 14vw, 72px); letter-spacing: -1.5px; }
+  .title-lg { font-size: clamp(24px, 7.5vw, 36px); }
+  .empty .glyph { font-size: clamp(48px, 16vw, 80px); }
+  .waveform { height: clamp(44px, 12vw, 68px); }
+  .bar-cell { height: clamp(10px, 3vw, 14px); }
+  .cat { min-height: clamp(48px, 13vw, 60px); padding: clamp(10px, 3vw, 14px) clamp(8px, 2.5vw, 12px); }
+  .cat-emoji { font-size: clamp(20px, 6vw, 28px); }
+  .results { gap: clamp(14px, 4vw, 20px); margin-top: clamp(16px, 4.5vw, 24px); }
+  .card { padding: clamp(12px, 3.5vw, 16px); }
+}
+
+/* Landscape: cap device height so the LCD doesn't get crushed by keys */
+@media (orientation: landscape) and (max-height: 520px) {
+  .device { max-height: 100dvh; }
+  .key { min-height: 46px; padding: 10px 4px 8px; }
+  .key.xl { min-height: 56px; padding: 14px 8px 10px; font-size: clamp(18px, 4vw, 24px); }
+  .title-xl { font-size: clamp(36px, 9vw, 60px); }
 }
