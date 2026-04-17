@@ -345,10 +345,12 @@ body {
   letter-spacing: 0.04em;
 }
 .card-blurb {
-  font-family: 'Kalam', cursive;
-  font-size: clamp(14px, 4.2cqi, 18px);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(13px, 3.6cqi, 16px);
+  font-weight: 500;
   margin-top: 12px;
-  line-height: 1.3;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
 }
 .card-buzz {
   display: flex;
