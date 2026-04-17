@@ -175,13 +175,13 @@ body {
 /* LCD bar (loading) */
 .bar {
   display: flex;
-  gap: 2px;
+  gap: 3px;
   width: 100%;
 }
 .bar-cell {
   flex: 1;
-  height: 10px;
-  border: 1.5px solid var(--ink);
+  height: 18px;
+  border: 2px solid var(--ink);
   background: transparent;
 }
 .bar-cell.on { background: var(--ink); }
@@ -190,11 +190,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  height: 56px;
+  gap: 4px;
+  height: 88px;
 }
 .wave-bar {
-  width: 4px;
+  width: 6px;
   background: var(--ink);
   animation: pulse 0.9s ease-in-out infinite;
 }
