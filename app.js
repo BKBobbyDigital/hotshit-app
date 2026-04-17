@@ -255,8 +255,7 @@ const views = {
     keys: () => [
       { n: 1, label: '◀ BACK', onClick: () => go('categories') },
       { n: 2, label: '↺ ROLL', primary: true, onClick: () => pickCategory(state.category) },
-      { n: 3, label: '♥', onClick: () => {} },
-      { n: 4, label: 'MAP', onClick: () => openMap(state.results[state.selected]) },
+      { n: 3, label: 'MAP', onClick: () => openMap(state.results[state.selected]) },
     ],
   },
 
