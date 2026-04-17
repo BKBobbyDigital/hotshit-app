@@ -105,9 +105,9 @@ function render() {
   for (const k of view.keys()) hardware.append(keyEl(k));
 }
 
-function keyEl({ n, label, onClick, primary, disabled, icon }) {
+function keyEl({ n, label, onClick, primary, disabled, icon, xl }) {
   return el('button', {
-    class: 'key' + (primary ? ' primary' : '') + (icon ? ' icon' : ''),
+    class: 'key' + (primary ? ' primary' : '') + (icon ? ' icon' : '') + (xl ? ' xl' : ''),
     type: 'button',
     disabled: !!disabled,
     onClick,
@@ -134,11 +134,11 @@ const views = {
       el('div', { class: 'spacer' }),
       el('div', { style: 'display:flex;justify-content:space-between;align-items:center;' },
         el('div', { style: 'font-size:56px;letter-spacing:4px;line-height:1' }, '🔥💩'),
-        el('div', { class: 'mono', style: 'font-size:14px;font-weight:700;color:var(--accent);letter-spacing:0.08em' }, '◉ PRESS ▶ 02'),
+        el('div', { class: 'mono', style: 'font-size:14px;font-weight:700;color:var(--accent);letter-spacing:0.08em' }, '◉ PRESS ▶'),
       ),
     ),
     keys: () => [
-      { n: 1, label: 'FIND 🔥💩', primary: true, onClick: requestLocation },
+      { n: 1, label: 'FIND 🔥💩', primary: true, xl: true, onClick: requestLocation },
     ],
   },
 
