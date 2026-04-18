@@ -86,12 +86,15 @@ const el = (tag, attrs = {}, ...children) => {
 };
 
 /* --- state --- */
+const REROLL_BUDGET = 3; // rerolls allowed per category before kicking back
 const state = {
-  view: 'landing', // landing | permission | loading | categories | results | empty
+  view: 'landing', // landing | permission | loading | categories | result | empty
   category: null,
   coords: null,
-  results: [],
-  selected: 0,
+  pool: [],          // remaining places we haven't shown yet for this category
+  shown: [],         // places we've already served (so we don't repeat)
+  pick: null,        // current single result on screen
+  rerollsLeft: REROLL_BUDGET,
 };
 
 /* --- routing --- */
@@ -244,26 +247,30 @@ const views = {
     ],
   },
 
-  results: {
-    mode: () => `🔥💩 · ${categoryEmoji(state.category)} · ${state.results.length} HITS`,
+  result: {
+    mode: () => `🔥💩 · ${categoryEmoji(state.category)} · GO HERE`,
     screen: () => {
+      const r = state.pick;
       return el('div', { class: 'screen' },
         el('div', { style: 'display:flex;justify-content:space-between;align-items:baseline' },
-          el('div', { class: 'prompt' }, `> ${String(state.results.length).padStart(2, '0')} RESULTS · 0.4mi`),
-          el('div', { class: 'mono', style: 'font-size:10px;font-weight:700;color:var(--accent)' }, '● LOCKED'),
+          el('div', { class: 'prompt' }, `> PICKED · ${categoryEmoji(state.category)}`),
+          el('div', { class: 'mono', style: 'font-size:11px;font-weight:700;color:var(--accent);letter-spacing:0.08em' }, '● LOCKED'),
         ),
-        el('h2', { class: 'title-md', style: 'margin-top:6px' }, "HERE'S THE 🔥💩"),
-        el('div', { class: 'results' },
-          ...state.results.map((r, i) => resultCard(r, i)),
+        el('h2', { class: 'title-md', style: 'margin-top:6px' }, "GO HERE."),
+        el('div', { class: 'results' }, resultCard(r)),
+        el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-top:14px' },
+          el('div', { class: 'mono', style: 'font-size:11px;font-weight:700;letter-spacing:0.08em;opacity:0.75' }, `↺ ${state.rerollsLeft} REROLL${state.rerollsLeft === 1 ? '' : 'S'} LEFT`),
+          el('div', { class: 'mono', style: 'font-size:11px;font-weight:700;letter-spacing:0.08em;opacity:0.75' }, '0.4mi · ~8 MIN'),
         ),
       );
     },
     keys: () => [
-      { n: 1, label: '◀ BACK', onClick: () => go('categories') },
-      { n: 2, label: '↺ ROLL', primary: true, onClick: () => pickCategory(state.category) },
-      { n: 3, label: 'MAP', onClick: () => openMap(state.results[state.selected]) },
+      { n: 1, label: '◀ BACK', onClick: () => resetCategory() },
+      { n: 2, label: state.rerollsLeft > 0 ? `↺ REROLL` : 'NO REROLLS', disabled: state.rerollsLeft === 0, onClick: rerollPick },
+      { n: 3, label: 'GO ▶', primary: true, onClick: () => openMap(state.pick) },
     ],
   },
+
 
   empty: {
     mode: () => '🔥💩 · NO SIGNAL',
@@ -290,15 +297,10 @@ const views = {
   },
 };
 
-function resultCard(r, i) {
-  const inverse = state.selected === i;
-  return el('button', {
-    class: 'card' + (inverse ? ' inverse' : ''),
-    type: 'button',
-    'aria-pressed': inverse ? 'true' : 'false',
-    onClick: () => selectResult(i),
-  },
-    el('div', { class: 'card-tag' }, String(i + 1).padStart(2, '0')),
+function resultCard(r) {
+  if (!r) return el('div');
+  return el('article', { class: 'card inverse hero' },
+    el('div', { class: 'card-tag' }, 'PICKED'),
     el('div', { class: 'card-head' },
       el('div', { class: 'card-name' }, r.name.toUpperCase()),
       el('div', { class: 'card-rating' }, `★${r.rating.toFixed(1)}`),
@@ -311,9 +313,52 @@ function resultCard(r, i) {
   );
 }
 
-function selectResult(i) {
-  state.selected = i;
-  render();
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function drawFromPool() {
+  if (!state.pool.length && state.shown.length) {
+    // refill: we exhausted the pool but still have rerolls — recycle
+    state.pool = shuffle(state.shown);
+    state.shown = [];
+  }
+  const next = state.pool.shift();
+  if (next) state.shown.push(next);
+  return next || null;
+}
+
+function resetCategory() {
+  state.category = null;
+  state.pool = [];
+  state.shown = [];
+  state.pick = null;
+  state.rerollsLeft = REROLL_BUDGET;
+  go('categories');
+}
+
+function rerollPick() {
+  if (state.rerollsLeft <= 0) return;
+  state.rerollsLeft -= 1;
+  go('loading');
+  setTimeout(() => {
+    if (state.view !== 'loading') return;
+    const next = drawFromPool();
+    if (!next) {
+      go('empty');
+      return;
+    }
+    state.pick = next;
+    if (state.rerollsLeft === 0) {
+      // last roll — show the result, but next reroll is gated
+    }
+    go('result');
+  }, 900 + Math.random() * 400);
 }
 
 function categoryEmoji(label) {
@@ -361,15 +406,21 @@ function skipLocation() {
 
 function pickCategory(label) {
   state.category = label;
-  state.selected = 0;
+  state.rerollsLeft = REROLL_BUDGET;
+  state.shown = [];
+  state.pool = shuffle(MOCK_RESULTS[label] || MOCK_RESULTS.Random);
+  state.pick = null;
   go('loading');
   const minWait = 1600 + Math.random() * 600;
   setTimeout(() => {
     if (state.view !== 'loading') return;
-    const pool = MOCK_RESULTS[label] || MOCK_RESULTS.Random;
-    state.results = pool.slice(0, 3);
-    if (!state.results.length) go('empty');
-    else go('results');
+    const next = drawFromPool();
+    if (!next) {
+      go('empty');
+      return;
+    }
+    state.pick = next;
+    go('result');
   }, minWait);
 }
 
