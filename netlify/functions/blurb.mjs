@@ -52,6 +52,7 @@ export default async (req) => {
       console.error('[blurb] ANTHROPIC_API_KEY not set');
       return json(FALLBACK);
     }
+    console.log('[blurb] key ends with', process.env.ANTHROPIC_API_KEY.slice(-4));
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const userMsg = [
