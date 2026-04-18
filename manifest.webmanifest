@@ -1,0 +1,19 @@
+{
+  "name": "Hot Shit",
+  "short_name": "Hot Shit",
+  "description": "The best shit nearby. Served hot.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#d1d3d4",
+  "theme_color": "#f15a22",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
