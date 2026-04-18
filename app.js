@@ -96,7 +96,7 @@ const el = (tag, attrs = {}, ...children) => {
 /* --- state --- */
 const REROLL_BUDGET = 3; // rerolls allowed per category before kicking back
 const state = {
-  view: 'landing', // landing | categories | loading | result | empty
+  view: 'landing', // landing | categories | loading | result | commit | empty
   category: null,
   coords: null,
   pool: [],          // remaining places we haven't shown yet for this category
@@ -251,10 +251,40 @@ const views = {
     keys: () => [
       { n: 1, label: '◀ BACK', onClick: () => resetCategory() },
       { n: 2, label: state.rerollsLeft > 0 ? `↺ REROLL` : 'NO REROLLS', disabled: state.rerollsLeft === 0, onClick: rerollPick },
-      { n: 3, label: 'GO ▶', primary: true, onClick: () => openMap(state.pick) },
+      { n: 3, label: 'GO ▶', primary: true, onClick: () => go('commit') },
     ],
   },
 
+  commit: {
+    mode: () => `🔥💩 · LOCKED IN`,
+    screen: () => {
+      const r = state.pick || {};
+      return el('div', { class: 'screen', style: 'display:flex;flex-direction:column;flex:1' },
+        el('div', { class: 'prompt' }, '> ', el('span', { class: 'accent' }, 'COMMITTED.')),
+        el('h1', { class: 'title-xl', style: 'margin-top:14px' }, 'GOING'),
+        el('h1', { class: 'title-xl' }, 'HERE.'),
+        el('div', { class: 'divider' }),
+        el('div', { class: 'commit-place' },
+          el('div', { class: 'commit-name' }, (r.name || '').toUpperCase()),
+          el('div', { class: 'commit-addr' }, '◉ ' + (r.addr || '').toUpperCase()),
+          r.hoursText && el('div', { class: 'commit-hours' },
+            el('span', { class: 'card-hours-dot' }, '●'), ' ' + r.hoursText,
+          ),
+        ),
+        el('div', { class: 'spacer' }),
+        el('div', { class: 'commit-walk' },
+          el('div', { class: 'mono', style: 'font-size:11px;letter-spacing:0.15em;opacity:0.6' }, 'WALK TIME'),
+          el('div', { class: 'walk-time' }, '~8 MIN'),
+          el('div', { class: 'mono', style: 'font-size:11px;letter-spacing:0.15em;opacity:0.6' }, '0.4 MI'),
+        ),
+        el('div', { class: 'stamp' }, 'LOCKED IN'),
+      );
+    },
+    keys: () => [
+      { n: 1, label: '◀ NOT YET', onClick: () => go('result') },
+      { n: 2, label: '📍 OPEN MAP', primary: true, onClick: () => openMap(state.pick) },
+    ],
+  },
 
   empty: {
     mode: () => '🔥💩 · NO SIGNAL',
