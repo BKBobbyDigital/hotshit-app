@@ -221,10 +221,7 @@ const views = {
       );
     },
     keys: () => [
-      { n: 1, label: 'STOP', onClick: () => go('landing') },
-      { n: 2, label: '···', primary: true, disabled: true },
-      { n: 3, label: 'WIDEN', disabled: true },
-      { n: 4, label: 'SKIP', disabled: true },
+      { label: '◀ CANCEL', onClick: resetCategory },
     ],
   },
 

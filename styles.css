@@ -646,7 +646,13 @@ body {
 }
 
 /* Landing */
-.landing-screen { display: flex; flex-direction: column; gap: 0; }
+.landing-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
 .landing-hero {
   display: flex;
   flex-direction: column;
