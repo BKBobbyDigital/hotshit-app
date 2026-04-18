@@ -13,6 +13,9 @@ import { getStore } from '@netlify/blobs';
 
 const MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TOKENS = 200;
+// Bump to invalidate all cached blurbs (e.g., after tuning the system prompt).
+const BLURB_VERSION = 1;
+const cacheKeyFor = (place_id) => `${place_id}@v${BLURB_VERSION}`;
 
 const SYSTEM = `You write short venue blurbs for Hot Shit, an app that helps friends decide where to go out.
 
@@ -41,7 +44,8 @@ export default async (req) => {
     }
 
     const store = getStore({ name: 'hotshit-blurbs' });
-    const cached = await store.get(place_id, { type: 'json' });
+    const key = cacheKeyFor(place_id);
+    const cached = await store.get(key, { type: 'json' });
     if (cached) return json(cached);
 
     if (!process.env.ANTHROPIC_API_KEY) {
@@ -65,20 +69,21 @@ export default async (req) => {
     });
 
     const text = resp.content.find((c) => c.type === 'text')?.text?.trim() || '';
-    const parsed = safeParseJson(text) || FALLBACK;
+    const parsed = safeParseJson(text);
+    if (!parsed || typeof parsed.blurb !== 'string' || !Array.isArray(parsed.buzzwords)) {
+      // Claude replied but we couldn't parse into the right shape — serve
+      // fallback to the client, but don't cache it so the next call retries.
+      return json(FALLBACK);
+    }
 
     // Sanity: clamp shape
     const out = {
-      blurb: typeof parsed.blurb === 'string'
-        ? parsed.blurb.trim().slice(0, 120)
-        : FALLBACK.blurb,
-      buzzwords: Array.isArray(parsed.buzzwords)
-        ? parsed.buzzwords.slice(0, 3).map((b) => String(b).trim().slice(0, 14))
-        : FALLBACK.buzzwords,
+      blurb: parsed.blurb.trim().slice(0, 120),
+      buzzwords: parsed.buzzwords.slice(0, 3).map((b) => String(b).trim().slice(0, 14)),
     };
     while (out.buzzwords.length < 3) out.buzzwords.push(FALLBACK.buzzwords[out.buzzwords.length]);
 
-    await store.setJSON(place_id, out);
+    await store.setJSON(key, out);
     return json(out);
   } catch (e) {
     // Never block the UI on blurb failures
