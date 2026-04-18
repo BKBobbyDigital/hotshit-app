@@ -132,7 +132,7 @@ function render() {
   for (const k of view.keys()) hardware.append(keyEl(k));
 }
 
-function keyEl({ n, label, onClick, primary, disabled, icon, xl }) {
+function keyEl({ label, onClick, primary, disabled, icon, xl }) {
   const handler = (e) => {
     if (primary) fx.primary(); else fx.click();
     if (onClick) onClick(e);
@@ -142,10 +142,7 @@ function keyEl({ n, label, onClick, primary, disabled, icon, xl }) {
     type: 'button',
     disabled: !!disabled,
     onClick: handler,
-  },
-    el('span', { class: 'num' }, String(n).padStart(2, '0')),
-    label,
-  );
+  }, label);
 }
 
 const BOOT_LINES = [
@@ -232,16 +229,15 @@ const views = {
   },
 
   categories: {
-    mode: () => '🔥💩 · PICK · 01–10',
+    mode: () => '🔥💩 · PICK',
     screen: () => {
       const grid = el('div', { class: 'cat-grid' },
-        ...CATEGORIES.map((c, i) =>
+        ...CATEGORIES.map((c) =>
           el('button', {
             class: 'cat',
             type: 'button',
             onClick: () => { fx.primary(); pickCategory(c.label); },
           },
-            el('span', { class: 'cat-num' }, String(i + 1).padStart(2, '0')),
             el('span', { class: 'cat-emoji' }, c.emoji),
             el('span', { class: 'cat-label' }, c.label.toUpperCase()),
           ),

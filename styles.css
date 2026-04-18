@@ -46,7 +46,6 @@
   --shadow-key: 3px 3px 0 var(--key-primary-fg);
   --shadow-key-down: 1px 1px 0 var(--key-primary-fg);
 }
-:root[data-theme="dark"] .key.primary .num { color: var(--key-primary-fg); }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -340,15 +339,6 @@ body {
   transition: transform 0.05s ease;
   min-height: clamp(52px, 15cqi, 72px);
 }
-.cat-num {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: clamp(9px, 2.5cqi, 12px);
-  opacity: 0.7;
-  font-weight: 700;
-  position: absolute;
-  top: clamp(3px, 1.2cqi, 6px);
-  left: clamp(6px, 2cqi, 10px);
-}
 .cat-emoji {
   font-size: clamp(22px, 7cqi, 36px);
   line-height: 1;
@@ -605,15 +595,6 @@ body {
   text-align: center;
   min-height: clamp(54px, 15cqi, 70px);
 }
-.key .num {
-  position: absolute;
-  top: clamp(3px, 1.2cqi, 6px);
-  left: clamp(6px, 2cqi, 10px);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: clamp(9px, 2.4cqi, 12px);
-  font-weight: 700;
-  opacity: 0.7;
-}
 .key.primary {
   background: var(--accent);
   color: #fff;
@@ -633,10 +614,6 @@ body {
   padding: clamp(22px, 6.5cqi, 36px) 10px clamp(18px, 5cqi, 28px);
   min-height: clamp(70px, 20cqi, 100px);
 }
-.key.xl .num {
-  font-size: clamp(11px, 3cqi, 14px);
-}
-.key.primary .num { color: #fff; opacity: 0.9; }
 .key:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -681,12 +658,6 @@ body {
   letter-spacing: 8px;
   line-height: 1;
   margin-bottom: clamp(4px, 1.5cqi, 10px);
-  animation: logo-breathe 3.2s ease-in-out infinite;
-  transform-origin: left center;
-}
-@keyframes logo-breathe {
-  0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.045); }
 }
 .landing-title { line-height: 0.86; }
 .landing-divider { margin-top: clamp(10px, 3cqi, 16px); }
@@ -700,7 +671,8 @@ body {
   color: var(--accent);
   letter-spacing: 0.22em;
   text-align: center;
-  padding-bottom: clamp(6px, 2cqi, 12px);
+  padding-bottom: 0;
+  margin-bottom: calc(-1 * var(--pad-lcd) + clamp(4px, 1cqi, 8px));
 }
 
 /* Screen transitions */
