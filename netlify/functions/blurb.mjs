@@ -49,6 +49,7 @@ export default async (req) => {
     if (cached) return json(cached);
 
     if (!process.env.ANTHROPIC_API_KEY) {
+      console.error('[blurb] ANTHROPIC_API_KEY not set');
       return json(FALLBACK);
     }
 
@@ -73,6 +74,7 @@ export default async (req) => {
     if (!parsed || typeof parsed.blurb !== 'string' || !Array.isArray(parsed.buzzwords)) {
       // Claude replied but we couldn't parse into the right shape — serve
       // fallback to the client, but don't cache it so the next call retries.
+      console.error('[blurb] parse failed for', place_id, 'raw:', text.slice(0, 200));
       return json(FALLBACK);
     }
 
@@ -86,7 +88,10 @@ export default async (req) => {
     await store.setJSON(key, out);
     return json(out);
   } catch (e) {
-    // Never block the UI on blurb failures
+    // Never block the UI on blurb failures, but surface the reason in the
+    // function logs so we can actually debug.
+    console.error('[blurb] exception:', e && (e.status || ''), e && (e.message || e));
+    if (e && e.error) console.error('[blurb] api error body:', JSON.stringify(e.error));
     return json(FALLBACK);
   }
 };
