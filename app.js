@@ -260,6 +260,9 @@ const views = {
     screen: () => {
       const r = state.pick;
       const c = state.committed;
+      const distText = formatDistance(r?.distanceMi);
+      const walkM = walkMinutes(r?.distanceMi);
+      const distRight = [distText, walkM ? `~${walkM} MIN WALK` : null].filter(Boolean).join(' · ');
       return el('div', { class: 'screen' },
         el('div', { style: 'display:flex;justify-content:space-between;align-items:baseline' },
           el('div', { class: 'prompt' }, c ? `> LOCKED IN · ${categoryEmoji(state.category)}` : `> CONSIDER · ${categoryEmoji(state.category)}`),
@@ -267,9 +270,9 @@ const views = {
         ),
         el('h2', { class: 'title-md', style: 'margin-top:6px' }, c ? 'GO HERE.' : "HERE'S THE 🔥💩"),
         el('div', { class: 'results' }, resultCard(r, c)),
-        el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-top:14px' },
+        el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:10px;flex-wrap:wrap' },
           el('div', { class: 'mono', style: 'font-size:11px;font-weight:700;letter-spacing:0.08em;opacity:0.75' }, `↺ ${state.rerollsLeft} REROLL${state.rerollsLeft === 1 ? '' : 'S'} LEFT`),
-          el('div', { class: 'mono', style: 'font-size:11px;font-weight:700;letter-spacing:0.08em;opacity:0.75' }, '0.4mi · ~8 MIN'),
+          distRight ? el('div', { class: 'mono', style: 'font-size:11px;font-weight:700;letter-spacing:0.08em;opacity:0.75' }, distRight) : null,
         ),
       );
     },
@@ -358,10 +361,15 @@ function resultCard(r, committed) {
       el('div', { class: 'card-rating' }, `★${r.rating.toFixed(1)}`),
     ),
     el('div', { class: 'card-addr' }, '◉ ' + r.addr.toUpperCase()),
-    r.hoursText && el('div', { class: 'card-hours' },
-      el('span', { class: 'card-hours-dot' }, '●'),
-      ' ' + r.hoursText,
-    ),
+    (() => {
+      const live = formatCloses(r.periods);
+      const text = live || r.hoursText;
+      if (!text) return null;
+      return el('div', { class: 'card-hours' },
+        el('span', { class: 'card-hours-dot' }, '●'),
+        ' ' + text,
+      );
+    })(),
     showLocWarning && el('button', {
       type: 'button',
       class: 'card-locwarn',
@@ -595,12 +603,63 @@ async function ensureBlurb(pick) {
     const data = await resp.json();
     if (data && data.blurb) pick.blurb = data.blurb;
     if (data && Array.isArray(data.buzzwords)) pick.buzz = data.buzzwords;
+    if (data && data.periods !== undefined) pick.periods = data.periods;
+    if (data && data.priceLevel !== undefined) pick.priceLevel = data.priceLevel;
     if (state.view === 'result' && state.pick === pick) render();
   } catch {
     /* fail silently — UI already has sensible defaults */
   } finally {
     delete pick._blurbLoading;
   }
+}
+
+/* --- live time / distance helpers --- */
+// Walking pace ~3 mph = 20 min per mile. Always at least 1 minute.
+function walkMinutes(distanceMi) {
+  if (typeof distanceMi !== 'number' || !isFinite(distanceMi)) return null;
+  return Math.max(1, Math.round(distanceMi * 20));
+}
+// Compute minutes until close given Google Place Details periods array.
+// Returns null if not currently open or periods are missing.
+// Handles the common bar/club case where close.day !== open.day (midnight wrap).
+function closesInMinutes(periods, now = new Date()) {
+  if (!Array.isArray(periods) || !periods.length) return null;
+  const day = now.getDay(); // 0=Sun
+  const min = now.getHours() * 60 + now.getMinutes();
+  const dayMin = 24 * 60;
+  for (const p of periods) {
+    if (!p?.open || !p?.close) continue;
+    const openMin = p.open.hour * 60 + (p.open.minute || 0);
+    const closeMin = p.close.hour * 60 + (p.close.minute || 0);
+    if (p.open.day === day) {
+      if (p.close.day === day && min >= openMin && min < closeMin) {
+        return closeMin - min;
+      }
+      if (p.close.day !== day && min >= openMin) {
+        return (dayMin - min) + closeMin;
+      }
+    } else if (p.close.day === day && p.open.day !== day && min < closeMin) {
+      return closeMin - min;
+    }
+  }
+  return null;
+}
+function formatCloses(periods) {
+  const mins = closesInMinutes(periods);
+  if (mins === null) return null;
+  if (mins <= 0) return 'CLOSING NOW';
+  if (mins < 60) return `CLOSES IN ${mins} MIN`;
+  const hrs = Math.floor(mins / 60);
+  const rem = mins % 60;
+  if (rem === 0) return `CLOSES IN ${hrs}H`;
+  return `CLOSES IN ${hrs}H ${rem}M`;
+}
+// Format a sub-mile distance: '0.4mi' / '0.42mi' / '1.2mi'.
+function formatDistance(distanceMi) {
+  if (typeof distanceMi !== 'number' || !isFinite(distanceMi)) return null;
+  if (distanceMi < 0.1) return '<0.1mi';
+  if (distanceMi < 1) return `${distanceMi.toFixed(1).replace(/\.0$/, '')}mi`;
+  return `${distanceMi.toFixed(1)}mi`;
 }
 
 async function pickCategory(label, opts = {}) {
