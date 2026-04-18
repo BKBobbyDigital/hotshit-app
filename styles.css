@@ -737,11 +737,30 @@ body {
   margin-bottom: calc(-1 * var(--pad-lcd) + clamp(4px, 1cqi, 8px));
 }
 
-/* Screen transitions */
+/* Screen transitions — fallback pop for browsers without View Transitions */
 .screen { animation: pop 0.18s ease-out; }
 @keyframes pop {
   from { opacity: 0; transform: translateY(2px); }
   to { opacity: 1; transform: none; }
+}
+
+/* When View Transitions is supported, disable the per-screen pop so the
+   ::view-transition-* animations own the navigation feel without doubling. */
+@supports (view-transition-name: none) {
+  .screen { animation: none; }
+
+  ::view-transition-old(root) {
+    animation: vt-out 0.18s cubic-bezier(0.4, 0, 1, 1) both;
+  }
+  ::view-transition-new(root) {
+    animation: vt-in 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  @keyframes vt-out {
+    to { opacity: 0; transform: translateY(-6px); }
+  }
+  @keyframes vt-in {
+    from { opacity: 0; transform: translateY(10px); }
+  }
 }
 
 /* Short viewports (e.g. iPhone SE 667px tall in landscape-ish space) */

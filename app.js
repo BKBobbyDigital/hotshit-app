@@ -118,7 +118,14 @@ const state = {
 function go(view, patch = {}) {
   Object.assign(state, patch, { view });
   fxForView(view);
-  render();
+  // View Transitions API wraps the DOM swap in a smooth cross-fade + slide
+  // (CSS owns the actual animation via ::view-transition-old/new). Gracefully
+  // falls back to instant render on browsers without support (Firefox).
+  if (document.startViewTransition && !state.decoding) {
+    document.startViewTransition(() => render());
+  } else {
+    render();
+  }
 }
 
 /* --- render --- */
@@ -180,7 +187,7 @@ const views = {
       el('p', { class: 'lcd-copy landing-tagline', style: 'margin:0' },
         'the best shit nearby.', el('br'),
         'served hot.', el('br'),
-        'no menus. no stars. just go.',
+        'no menus. no debate. just go.',
       ),
       el('div', { class: 'spacer' }),
       el('div', { class: 'landing-ready' },
@@ -464,8 +471,9 @@ function resetCategory() {
 }
 
 // Decode a target string left-to-right over ~450ms. Letters/digits flicker
-// through noise glyphs; spaces and punctuation pass through. Re-renders on
-// each step. Resolves when fully decoded.
+// through noise glyphs; spaces and punctuation pass through. Patches the
+// .card-name text node directly between full renders to avoid View
+// Transition jank on every frame.
 function startDecode(target) {
   return new Promise((resolve) => {
     const NOISE = '▓▒░@#%&*+=?!/\\|<>{}[]';
@@ -474,18 +482,19 @@ function startDecode(target) {
     const isReplaceable = (c) => /[A-Z0-9]/.test(c);
     const stepsTotal = 9;
     const stepMs = 50;
-    let step = 0;
     state.decoding = true;
     state.decodeText = chars.map((c) => isReplaceable(c)
       ? NOISE[Math.floor(Math.random() * NOISE.length)] : c).join('');
-    render();
+    render(); // single full render to apply .decoding class + initial text
+    const nameEl = document.querySelector('.card .card-name');
+    let step = 0;
     const id = setInterval(() => {
       step += 1;
       if (step >= stepsTotal) {
         clearInterval(id);
         state.decoding = false;
         state.decodeText = upper;
-        render();
+        render(); // single full render to clear .decoding class + finalize
         resolve();
         return;
       }
@@ -495,7 +504,9 @@ function startDecode(target) {
         if (!isReplaceable(c)) return c;
         return NOISE[Math.floor(Math.random() * NOISE.length)];
       }).join('');
-      render();
+      // Patch the visible name text only — avoid full re-render so the
+      // View Transition system isn't triggered on every decode tick.
+      if (nameEl) nameEl.textContent = state.decodeText;
     }, stepMs);
   });
 }
