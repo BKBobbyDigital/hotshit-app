@@ -148,12 +148,28 @@ function keyEl({ n, label, onClick, primary, disabled, icon, xl }) {
   );
 }
 
+const BOOT_LINES = [
+  'booted.',
+  'warming up.',
+  'sniffing the block.',
+  'ready when you are.',
+  'jukebox loaded.',
+  'sensors hot.',
+  'calibrated.',
+];
+// One boot line per page load — feels like the device just turned on.
+const BOOT_LINE = BOOT_LINES[Math.floor(Math.random() * BOOT_LINES.length)];
+
+function nowTime() {
+  return new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
 /* --- views --- */
 const views = {
   landing: {
     mode: () => '🔥💩 · HOT · READY',
     screen: () => el('div', { class: 'screen landing-screen' },
-      el('div', { class: 'prompt' }, '> booted.'),
+      el('div', { class: 'prompt' }, `> ${BOOT_LINE} · ${nowTime()}`),
       el('div', { class: 'landing-hero' },
         el('div', { class: 'landing-logo', 'aria-hidden': 'true' }, '🔥💩'),
         el('h1', { class: 'title-xl landing-title' }, 'HOT'),
