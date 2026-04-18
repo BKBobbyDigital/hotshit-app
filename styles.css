@@ -11,6 +11,7 @@
   --surface-alt: var(--ink);
   --text-on-alt: var(--lcd);
   --bloom: none;
+  --accent-line: var(--ink);
   --shadow-key: 3px 3px 0 var(--ink);
   --shadow-key-down: 1px 1px 0 var(--ink);
   --pad-lcd: clamp(12px, 3.5cqi, 18px);
@@ -32,6 +33,7 @@
   --surface-alt: #14241a;
   --text-on-alt: #b6ffc7;
   --bloom: 0 0 6px currentColor;
+  --accent-line: #7a2e10;
   color-scheme: dark;
 }
 
@@ -144,7 +146,7 @@ body {
   border: 1.75px solid var(--ink);
   background: transparent;
 }
-.led-on { background: var(--accent); }
+.led-on { background: var(--accent); border-color: var(--accent-line); }
 .led-ink { background: var(--ink); }
 .led-blink { animation: blink 1s steps(2, end) infinite; }
 @keyframes blink { 50% { background: transparent; } }
@@ -476,6 +478,9 @@ body {
 .key.primary {
   background: var(--accent);
   color: #fff;
+  border-color: var(--accent-line);
+  --shadow-key: 3px 3px 0 var(--accent-line);
+  --shadow-key-down: 1px 1px 0 var(--accent-line);
 }
 .key.icon {
   font-size: clamp(20px, 6.5cqi, 30px);
