@@ -4,32 +4,36 @@
  *         rating?: number, reviewCount?: number }
  * Returns: { blurb: string, buzzwords: string[3] }
  *
- * - Permanent cache in Netlify Blobs keyed by place_id (blurbs don't change).
- * - Falls back to a safe default shape on any error so the UI never blocks.
+ * Pipeline:
+ *   1. Permanent Blobs cache lookup (keyed place_id@vN).
+ *   2. Fetch Place Details from Google for reviews + editorialSummary —
+ *      this is the source material that makes each place sound distinct.
+ *   3. Call Claude Sonnet with the richer context.
+ *   4. Cache result. Fallbacks for every failure mode, none of them cached.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
 import { getStore } from '@netlify/blobs';
 
-const MODEL = 'claude-haiku-4-5-20251001';
+const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 200;
-// Bump to invalidate all cached blurbs (e.g., after tuning the system prompt).
-const BLURB_VERSION = 1;
+// Bump to invalidate all cached blurbs (e.g., after tuning the system prompt
+// or switching models). v2 added Place Details review context + Sonnet upgrade.
+const BLURB_VERSION = 2;
 const cacheKeyFor = (place_id) => `${place_id}@v${BLURB_VERSION}`;
 
 const SYSTEM = `You write short venue blurbs for Hot Shit, an app that helps friends decide where to go out.
 
-Voice: fun, opinionated, slightly irreverent. Never use hype words like "amazing", "must-try", "authentic", "hidden gem". Punchy, confident sentences. Never hedge.
+Voice: fun, opinionated, slightly irreverent. Punchy, confident sentences. Never use hype words like "amazing", "must-try", "authentic", "hidden gem", "vibes". Never hedge.
 
-Given a place's name, type, address, rating, and review count, return ONLY a JSON object with these exact keys:
+You'll receive a place's name, type, rating, and — critically — real review snippets and/or an editorial summary. USE the review snippets to write something specific to THIS place: a signature dish, a specific detail, the actual vibe customers describe. Do not generalize. If reviews mention a standout item or quirk, lead with that.
+
+Return ONLY a JSON object with these exact keys:
 - "blurb": one short declarative sentence, MAX 90 characters, ending with a period. No emoji. No quotes in the text.
-- "buzzwords": array of EXACTLY 3 strings. Each: 1-2 words, Title Case, MAX 12 characters each. No emoji.
+- "buzzwords": array of EXACTLY 3 strings. Each 1-2 words, Title Case, MAX 12 characters. Pull from what makes this place specific (e.g., "Adobada", "BYOB", "Counter Seat").
 
 Return the JSON object and nothing else. No code fences, no commentary.`;
 
-// Category-flavored fallbacks used whenever the Claude call can't run
-// (no credits, rate limit, transient error). Better than a single generic
-// line showing up on every card.
 const FALLBACK_BY_TYPE = {
   bar:                 { blurb: 'Pull up. Order something cold.',           buzzwords: ['Drinks', 'Pull Up', 'Local'] },
   cocktail_bar:        { blurb: 'Sit at the bar. Ask what\'s good.',         buzzwords: ['Cocktails', 'Bar Seat', 'Vibe'] },
@@ -50,6 +54,28 @@ function fallbackFor(typeHint) {
   return FALLBACK_BY_TYPE[key] || FALLBACK_DEFAULT;
 }
 
+async function fetchPlaceDetails(place_id) {
+  if (!process.env.GOOGLE_PLACES_KEY) return null;
+  try {
+    const url = `https://places.googleapis.com/v1/places/${encodeURIComponent(place_id)}`;
+    const resp = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-Goog-Api-Key': process.env.GOOGLE_PLACES_KEY,
+        'X-Goog-FieldMask': 'reviews,editorialSummary,priceLevel',
+      },
+    });
+    if (!resp.ok) {
+      console.error('[blurb] Place Details failed:', resp.status, (await resp.text()).slice(0, 200));
+      return null;
+    }
+    return await resp.json();
+  } catch (e) {
+    console.error('[blurb] Place Details exception:', e.message);
+    return null;
+  }
+}
+
 export default async (req) => {
   if (req.method !== 'POST') {
     return json({ error: 'POST only' }, 405);
@@ -57,7 +83,7 @@ export default async (req) => {
   let typeHint;
   try {
     const body = await req.json();
-    let { place_id, name, typeHint: th, addr, rating, reviewCount } = body || {};
+    const { place_id, name, addr, rating, reviewCount, typeHint: th } = body || {};
     typeHint = th;
     if (!place_id || !name) {
       return json({ error: 'place_id and name required' }, 400);
@@ -72,7 +98,16 @@ export default async (req) => {
       console.error('[blurb] ANTHROPIC_API_KEY not set');
       return json(fallbackFor(typeHint));
     }
-    console.log('[blurb] key ends with', process.env.ANTHROPIC_API_KEY.slice(-4));
+
+    // Pull review snippets + editorial summary to give Claude actual
+    // per-place material to work from.
+    const details = await fetchPlaceDetails(place_id);
+    const reviews = (details?.reviews || [])
+      .slice(0, 3)
+      .map((r) => (r?.text?.text || '').replace(/\s+/g, ' ').trim().slice(0, 220))
+      .filter(Boolean);
+    const editorial = details?.editorialSummary?.text || null;
+    const priceLevel = details?.priceLevel || null;
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const userMsg = [
@@ -80,7 +115,12 @@ export default async (req) => {
       typeHint ? `Type: ${typeHint}` : null,
       addr ? `Address: ${addr}` : null,
       rating ? `Rating: ${rating}` : null,
-      reviewCount ? `Reviews: ${reviewCount}` : null,
+      reviewCount ? `Review count: ${reviewCount}` : null,
+      priceLevel ? `Price level: ${priceLevel}` : null,
+      editorial ? `Editorial summary: ${editorial}` : null,
+      reviews.length
+        ? `Review snippets:\n${reviews.map((r, i) => `${i + 1}. ${r}`).join('\n')}`
+        : null,
     ].filter(Boolean).join('\n');
 
     const resp = await client.messages.create({
@@ -93,13 +133,10 @@ export default async (req) => {
     const text = resp.content.find((c) => c.type === 'text')?.text?.trim() || '';
     const parsed = safeParseJson(text);
     if (!parsed || typeof parsed.blurb !== 'string' || !Array.isArray(parsed.buzzwords)) {
-      // Claude replied but we couldn't parse into the right shape — serve
-      // fallback to the client, but don't cache it so the next call retries.
       console.error('[blurb] parse failed for', place_id, 'raw:', text.slice(0, 200));
       return json(fallbackFor(typeHint));
     }
 
-    // Sanity: clamp shape
     const fb = fallbackFor(typeHint);
     const out = {
       blurb: parsed.blurb.trim().slice(0, 120),
@@ -110,8 +147,6 @@ export default async (req) => {
     await store.setJSON(key, out);
     return json(out);
   } catch (e) {
-    // Never block the UI on blurb failures, but surface the reason in the
-    // function logs so we can actually debug.
     console.error('[blurb] exception:', e && (e.status || ''), e && (e.message || e));
     if (e && e.error) console.error('[blurb] api error body:', JSON.stringify(e.error));
     return json(fallbackFor(typeHint));
@@ -119,7 +154,6 @@ export default async (req) => {
 };
 
 function safeParseJson(text) {
-  // Strip possible code fences Claude sometimes adds despite the system prompt.
   const cleaned = text
     .replace(/^```(?:json)?/i, '')
     .replace(/```$/, '')
