@@ -600,4 +600,10 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     go('landing');
   }
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
 });
