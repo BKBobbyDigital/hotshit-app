@@ -108,6 +108,7 @@ const state = {
 /* --- routing --- */
 function go(view, patch = {}) {
   Object.assign(state, patch, { view });
+  fxForView(view);
   render();
 }
 
@@ -127,11 +128,15 @@ function render() {
 }
 
 function keyEl({ n, label, onClick, primary, disabled, icon, xl }) {
+  const handler = (e) => {
+    if (primary) fx.primary(); else fx.click();
+    if (onClick) onClick(e);
+  };
   return el('button', {
     class: 'key' + (primary ? ' primary' : '') + (icon ? ' icon' : '') + (xl ? ' xl' : ''),
     type: 'button',
     disabled: !!disabled,
-    onClick,
+    onClick: handler,
   },
     el('span', { class: 'num' }, String(n).padStart(2, '0')),
     label,
@@ -210,7 +215,7 @@ const views = {
           el('button', {
             class: 'cat',
             type: 'button',
-            onClick: () => pickCategory(c.label),
+            onClick: () => { fx.primary(); pickCategory(c.label); },
           },
             el('span', { class: 'cat-num' }, String(i + 1).padStart(2, '0')),
             el('span', { class: 'cat-emoji' }, c.emoji),
@@ -484,6 +489,61 @@ function flashShareToast(msg) {
   }, 1400);
 }
 
+/* --- sound + haptics --- */
+let muted = localStorage.getItem('hotshit.muted') === '1';
+let _ctx = null;
+function audioCtx() {
+  if (_ctx) return _ctx;
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) return null;
+  _ctx = new Ctor();
+  return _ctx;
+}
+function tone(freq, dur, type = 'square', vol = 0.06, when = 0) {
+  if (muted) return;
+  const ctx = audioCtx();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
+  const t = ctx.currentTime + when;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(vol, t + 0.005);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(t);
+  osc.stop(t + dur + 0.02);
+}
+function vibe(pattern) {
+  if (muted) return;
+  if (navigator.vibrate) navigator.vibrate(pattern);
+}
+const fx = {
+  click()   { tone(880, 0.04, 'square', 0.05); vibe(12); },
+  primary() { tone(440, 0.06, 'square', 0.07); vibe(20); },
+  result()  { tone(660, 0.07); tone(880, 0.07, 'square', 0.06, 0.07); tone(1320, 0.1, 'square', 0.06, 0.14); vibe([18, 30, 24]); },
+  empty()   { tone(220, 0.12, 'square', 0.07); tone(165, 0.18, 'square', 0.07, 0.13); vibe([30, 60, 30]); },
+  commit()  { tone(523, 0.06, 'square', 0.07); tone(659, 0.06, 'square', 0.07, 0.06); tone(784, 0.12, 'square', 0.07, 0.12); vibe([18, 24, 36]); },
+  reroll()  { tone(330, 0.05); tone(440, 0.05, 'square', 0.05, 0.05); vibe(14); },
+};
+function fxForView(view) {
+  if (view === 'result') fx.result();
+  else if (view === 'empty') fx.empty();
+  else if (view === 'commit') fx.commit();
+}
+function setMuted(next) {
+  muted = next;
+  localStorage.setItem('hotshit.muted', muted ? '1' : '0');
+  const btn = document.getElementById('muteToggle');
+  if (btn) {
+    btn.textContent = muted ? '🔇' : '🔊';
+    btn.setAttribute('aria-label', muted ? 'Sound muted (click to unmute)' : 'Sound on (click to mute)');
+  }
+}
+
 /* --- theme --- */
 const THEME_ORDER = ['auto', 'light', 'dark'];
 const THEME_GLYPH = { auto: '◐', light: '○', dark: '●' };
@@ -528,8 +588,11 @@ function categoryFromUrl() {
 /* --- boot --- */
 document.addEventListener('DOMContentLoaded', () => {
   applyTheme(themePref);
-  const btn = document.getElementById('themeToggle');
-  if (btn) btn.addEventListener('click', cycleTheme);
+  setMuted(muted);
+  const themeBtn = document.getElementById('themeToggle');
+  if (themeBtn) themeBtn.addEventListener('click', () => { fx.click(); cycleTheme(); });
+  const muteBtn = document.getElementById('muteToggle');
+  if (muteBtn) muteBtn.addEventListener('click', () => { setMuted(!muted); if (!muted) fx.click(); });
 
   const deepLinkCat = categoryFromUrl();
   if (deepLinkCat) {
