@@ -183,6 +183,31 @@ body {
   background-size: 3px 3px;
   z-index: 1;
 }
+/* Scanline — CRT phosphor effect, dark mode only */
+.scanline {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  display: none;
+  background-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(93, 255, 132, 0.16) 50%,
+    transparent 100%
+  );
+  background-size: 100% 7%;
+  background-repeat: no-repeat;
+  background-position: 0 -7%;
+}
+:root[data-theme="dark"] .scanline {
+  display: block;
+  animation: scanline-slide 7s linear infinite;
+}
+@keyframes scanline-slide {
+  0%   { background-position: 0 -7%; }
+  100% { background-position: 0 107%; }
+}
 .lcd-inner {
   position: relative;
   z-index: 2;
@@ -621,6 +646,26 @@ body {
 .key:not(:disabled):active {
   transform: translate(2px, 2px);
   box-shadow: var(--shadow-key-down);
+}
+
+/* Idle pulse on the FIND key after ~3s of dormant time */
+.key.xl.primary {
+  animation: idle-pulse 2.4s ease-in-out 3s infinite;
+}
+.key.xl.primary:active,
+.key.xl.primary:focus-visible {
+  animation: none;
+}
+@keyframes idle-pulse {
+  0%, 100% { box-shadow: var(--shadow-key); }
+  50%      { box-shadow: var(--shadow-key), 0 0 0 5px rgba(241, 90, 34, 0.18); }
+}
+:root[data-theme="dark"] .key.xl.primary {
+  animation-name: idle-pulse-dark;
+}
+@keyframes idle-pulse-dark {
+  0%, 100% { box-shadow: var(--shadow-key); }
+  50%      { box-shadow: var(--shadow-key), 0 0 0 5px rgba(93, 255, 132, 0.22); }
 }
 
 /* Landing */
