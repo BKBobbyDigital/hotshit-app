@@ -379,5 +379,38 @@ function openMap(r) {
   window.open(`https://maps.google.com/?q=${q}`, '_blank', 'noopener');
 }
 
+/* --- theme --- */
+const THEME_ORDER = ['auto', 'light', 'dark'];
+const THEME_GLYPH = { auto: '◐', light: '○', dark: '●' };
+let themePref = localStorage.getItem('hotshit.theme') || 'auto';
+
+function applyTheme(pref) {
+  const root = document.documentElement;
+  if (pref === 'auto') {
+    root.removeAttribute('data-theme');
+  } else {
+    root.setAttribute('data-theme', pref);
+  }
+  const btn = document.getElementById('themeToggle');
+  if (btn) {
+    btn.firstChild.textContent = THEME_GLYPH[pref];
+    const label = document.getElementById('themeLabel');
+    if (label) label.textContent = pref.toUpperCase();
+    btn.setAttribute('aria-label', `Theme: ${pref}. Click to cycle.`);
+  }
+}
+
+function cycleTheme() {
+  const next = THEME_ORDER[(THEME_ORDER.indexOf(themePref) + 1) % THEME_ORDER.length];
+  themePref = next;
+  localStorage.setItem('hotshit.theme', next);
+  applyTheme(next);
+}
+
 /* --- boot --- */
-document.addEventListener('DOMContentLoaded', () => go('landing'));
+document.addEventListener('DOMContentLoaded', () => {
+  applyTheme(themePref);
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.addEventListener('click', cycleTheme);
+  go('landing');
+});
