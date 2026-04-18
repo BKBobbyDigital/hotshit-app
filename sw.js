@@ -1,4 +1,4 @@
-const CACHE = 'hotshit-v3';
+const CACHE = 'hotshit-v4';
 const PRECACHE = [
   '/',
   '/index.html',
@@ -33,6 +33,9 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return; // pass through cross-origin (fonts, maps)
+
+  // API routes are always live — never cache
+  if (url.pathname.startsWith('/api/')) return;
 
   // HTML / navigations: network-first so deploys propagate immediately,
   // fall back to cached index.html on offline.

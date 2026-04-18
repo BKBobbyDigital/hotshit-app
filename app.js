@@ -95,15 +95,19 @@ const el = (tag, attrs = {}, ...children) => {
 
 /* --- state --- */
 const REROLL_BUDGET = 3; // rerolls allowed per category before kicking back
+const MAX_RADIUS_TIER = 3;
+const USE_LIVE_API = !/\bmock=1\b/.test(window.location.search);
 const state = {
   view: 'landing', // landing | categories | loading | result | empty
   category: null,
   coords: null,
-  pool: [],          // remaining places we haven't shown yet for this category
-  shown: [],         // places we've already served (so we don't repeat)
-  pick: null,        // current single result on screen
+  pool: [],            // remaining places we haven't shown yet for this category
+  shown: [],           // places we've already served (so we don't repeat)
+  pick: null,          // current single result on screen
   rerollsLeft: REROLL_BUDGET,
-  committed: false,  // user has tapped the card to claim it
+  radiusTier: 0,       // 0 = city default, 1 = 2x, 2 = 4x, 3 = 8x
+  committed: false,    // user has tapped the card to claim it
+  usingMocks: false,   // true when the live API failed and we fell back
 };
 
 /* --- routing --- */
@@ -263,25 +267,34 @@ const views = {
 
   empty: {
     mode: () => '🔥💩 · NO SIGNAL',
-    screen: () => el('div', { class: 'screen' },
-      el('div', { class: 'prompt' }, '> ', el('span', { class: 'accent' }, 'ERR: NO 🔥💩 FOUND')),
-      el('h1', { class: 'title-xl', style: 'margin-top:14px' }, '0.'),
-      el('p', { class: 'lede', style: 'margin:8px 0 0' },
-        'we looked. we scowled.', el('br'),
-        'nothing worth eating', el('br'),
-        'within a mile.',
-      ),
-      el('div', { class: 'spacer' }),
-      el('div', { class: 'empty' },
-        el('div', { class: 'glyph' }, '🗿'),
-        el('div', { class: 'scrawl' }, 'sorry, this block sucks.'),
-      ),
-    ),
+    screen: () => {
+      const canWiden = state.radiusTier < MAX_RADIUS_TIER;
+      return el('div', { class: 'screen' },
+        el('div', { class: 'prompt' }, '> ', el('span', { class: 'accent' }, 'ERR: NO 🔥💩 FOUND')),
+        el('h1', { class: 'title-xl', style: 'margin-top:14px' }, '0.'),
+        el('p', { class: 'lede', style: 'margin:8px 0 0' },
+          'we looked. we scowled.', el('br'),
+          canWiden ? 'widen the search?' : 'this block really sucks.', el('br'),
+          canWiden ? null : 'try a different vibe.',
+        ),
+        el('div', { class: 'spacer' }),
+        el('div', { class: 'empty' },
+          el('div', { class: 'glyph' }, '🗿'),
+          el('div', { class: 'scrawl' },
+            canWiden ? 'nothing within range.' : 'sorry, this block sucks.',
+          ),
+        ),
+      );
+    },
     keys: () => [
-      { n: 1, label: 'RESET', onClick: () => go('landing') },
-      { n: 2, label: 'WIDEN +', primary: true, onClick: () => pickCategory(state.category || 'Random') },
-      { n: 3, label: 'ZIP', disabled: true },
-      { n: 4, label: 'WALK', disabled: true },
+      { n: 1, label: '◀ BACK', onClick: resetCategory },
+      {
+        n: 2,
+        label: state.radiusTier < MAX_RADIUS_TIER ? 'WIDEN +' : 'MAX REACHED',
+        primary: true,
+        disabled: state.radiusTier >= MAX_RADIUS_TIER,
+        onClick: widenRadius,
+      },
     ],
   },
 };
@@ -299,10 +312,10 @@ function resultCard(r, committed) {
       el('span', { class: 'card-hours-dot' }, '●'),
       ' ' + r.hoursText,
     ),
-    el('p', { class: 'card-blurb' }, r.blurb),
-    el('div', { class: 'card-buzz' },
+    r.blurb ? el('p', { class: 'card-blurb' }, r.blurb) : null,
+    r.buzz && r.buzz.length ? el('div', { class: 'card-buzz' },
       ...r.buzz.map((b) => el('span', { class: 'buzz' }, b)),
-    ),
+    ) : null,
     committed && el('div', { class: 'stamp stamp-card' }, 'LOCKED IN'),
     committed && el('div', { class: 'card-actions' },
       el('button', {
@@ -355,9 +368,15 @@ function drawFromPool() {
     state.pool = shuffle(state.shown);
     state.shown = [];
   }
-  const next = state.pool.shift();
-  if (next) state.shown.push(next);
-  return next || null;
+  if (!state.pool.length) return null;
+  // First pick: random from top 5 of the score-ordered pool, so the answer
+  // feels confident but isn't deterministic. Subsequent picks (rerolls) draw
+  // the next-best remaining in sorted order — real alternatives, not noise.
+  const isFirst = state.shown.length === 0;
+  const idx = isFirst ? Math.floor(Math.random() * Math.min(5, state.pool.length)) : 0;
+  const [next] = state.pool.splice(idx, 1);
+  state.shown.push(next);
+  return next;
 }
 
 function resetCategory() {
@@ -366,7 +385,9 @@ function resetCategory() {
   state.shown = [];
   state.pick = null;
   state.rerollsLeft = REROLL_BUDGET;
+  state.radiusTier = 0;
   state.committed = false;
+  state.usingMocks = false;
   go('categories');
 }
 
@@ -383,10 +404,8 @@ function rerollPick() {
       return;
     }
     state.pick = next;
-    if (state.rerollsLeft === 0) {
-      // last roll — show the result, but next reroll is gated
-    }
     go('result');
+    if (USE_LIVE_API && !state.usingMocks) ensureBlurb(next);
   }, 900 + Math.random() * 400);
 }
 
@@ -430,23 +449,91 @@ function ensureLocation() {
   });
 }
 
-async function pickCategory(label) {
+async function fetchPool(lat, lon, category, radiusTier) {
+  try {
+    const resp = await fetch('/api/find', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lon, category, radiusTier }),
+    });
+    if (!resp.ok) return { pool: [], error: resp.status };
+    const data = await resp.json();
+    return data;
+  } catch (e) {
+    return { pool: [], error: e.message };
+  }
+}
+
+async function ensureBlurb(pick) {
+  if (!pick || !pick.place_id || pick.blurb || pick._blurbLoading) return;
+  pick._blurbLoading = true;
+  try {
+    const resp = await fetch('/api/blurb', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        place_id: pick.place_id,
+        name: pick.name,
+        typeHint: pick.typeHint,
+        addr: pick.addr,
+        rating: pick.rating,
+        reviewCount: pick.reviewCount,
+      }),
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (data && data.blurb) pick.blurb = data.blurb;
+    if (data && Array.isArray(data.buzzwords)) pick.buzz = data.buzzwords;
+    if (state.view === 'result' && state.pick === pick) render();
+  } catch {
+    /* fail silently — UI already has sensible defaults */
+  } finally {
+    delete pick._blurbLoading;
+  }
+}
+
+async function pickCategory(label, opts = {}) {
+  const radiusTier = Number.isFinite(opts.radiusTier) ? opts.radiusTier : 0;
   state.category = label;
   state.rerollsLeft = REROLL_BUDGET;
   state.shown = [];
-  state.pool = shuffle(filterOpenNow(MOCK_RESULTS[label] || MOCK_RESULTS.Random));
+  state.pool = [];
   state.pick = null;
   state.committed = false;
+  state.radiusTier = radiusTier;
+  state.usingMocks = false;
   go('loading');
+
   const minWait = 1600 + Math.random() * 600;
-  // Kick off both in parallel: the system permission dialog (if not yet
-  // granted) and our minimum loader runtime. We don't gate results on
-  // location yet — mock data is ready immediately.
-  const [, ] = await Promise.all([
-    ensureLocation(),
-    new Promise((r) => setTimeout(r, minWait)),
-  ]);
+  const loaderPromise = new Promise((r) => setTimeout(r, minWait));
+
+  let pool = [];
+  if (USE_LIVE_API) {
+    const coords = await ensureLocation();
+    if (coords) {
+      const data = await fetchPool(coords.lat, coords.lon, label, radiusTier);
+      pool = Array.isArray(data.pool) ? data.pool : [];
+    }
+  } else {
+    await ensureLocation();
+  }
+
+  // Fallback to mocks if the live API gave us nothing (denied permission,
+  // rate limited, offline, empty result). Mocks are already NYC-flavored so
+  // they keep the demo alive anywhere in the world.
+  if (!pool.length) {
+    const key = label === 'random'
+      ? Object.keys(MOCK_RESULTS)[Math.floor(Math.random() * Object.keys(MOCK_RESULTS).length)]
+      : Object.keys(MOCK_RESULTS).find((k) => k.toLowerCase() === label.toLowerCase());
+    pool = shuffle(filterOpenNow(MOCK_RESULTS[key] || MOCK_RESULTS.Random));
+    state.usingMocks = true;
+  }
+
+  state.pool = pool;
+
+  await loaderPromise;
   if (state.view !== 'loading') return;
+
   const next = drawFromPool();
   if (!next) {
     go('empty');
@@ -454,6 +541,13 @@ async function pickCategory(label) {
   }
   state.pick = next;
   go('result');
+  if (USE_LIVE_API && !state.usingMocks) ensureBlurb(next);
+}
+
+function widenRadius() {
+  if (state.radiusTier >= MAX_RADIUS_TIER) return;
+  const nextTier = state.radiusTier + 1;
+  pickCategory(state.category || 'random', { radiusTier: nextTier });
 }
 
 function openMap(r) {
