@@ -321,10 +321,18 @@ function resultCard(r, committed) {
   if (committed) {
     return el('article', { class: 'card hero committed' }, ...body);
   }
-  return el('button', {
-    type: 'button',
+  return el('div', {
     class: 'card hero',
+    role: 'button',
+    tabindex: '0',
+    'aria-label': `Tap to lock in ${r.name}`,
     onClick: commitPick,
+    onKeydown: (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        commitPick();
+      }
+    },
   }, ...body);
 }
 
