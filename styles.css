@@ -96,6 +96,8 @@ body {
 .led-ink { background: var(--ink); }
 .led-blink { animation: blink 1s steps(2, end) infinite; }
 @keyframes blink { 50% { background: transparent; } }
+.text-blink { animation: text-blink 1.4s steps(2, end) infinite; }
+@keyframes text-blink { 50% { opacity: 0.35; } }
 
 /* LCD */
 .lcd {
