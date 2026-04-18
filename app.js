@@ -515,10 +515,26 @@ darkMQ.addEventListener('change', () => {
   if (themePref === 'auto') applyTheme('auto');
 });
 
+/* --- deep links --- */
+// Match /pizza, /tacos, /random, etc. (also #/pizza for fallback hosts).
+function categoryFromUrl() {
+  const raw = (window.location.pathname.replace(/^\//, '') || window.location.hash.replace(/^#\/?/, '')).trim().toLowerCase();
+  if (!raw) return null;
+  const slug = raw.split(/[\/?#]/)[0];
+  const match = CATEGORIES.find((c) => c.label.toLowerCase() === slug);
+  return match ? match.label : null;
+}
+
 /* --- boot --- */
 document.addEventListener('DOMContentLoaded', () => {
   applyTheme(themePref);
   const btn = document.getElementById('themeToggle');
   if (btn) btn.addEventListener('click', cycleTheme);
-  go('landing');
+
+  const deepLinkCat = categoryFromUrl();
+  if (deepLinkCat) {
+    pickCategory(deepLinkCat);
+  } else {
+    go('landing');
+  }
 });
