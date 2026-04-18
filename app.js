@@ -94,7 +94,7 @@ const el = (tag, attrs = {}, ...children) => {
 };
 
 /* --- state --- */
-const REROLL_BUDGET = 3; // rerolls allowed per category before kicking back
+const PICKS_BUDGET = 3; // alternate picks allowed per category beyond the first
 const MAX_RADIUS_TIER = 3;
 const USE_LIVE_API = !/\bmock=1\b/.test(window.location.search);
 const state = {
@@ -104,12 +104,14 @@ const state = {
   pool: [],            // remaining places we haven't shown yet for this category
   shown: [],           // places we've already served (so we don't repeat)
   pick: null,          // current single result on screen
-  rerollsLeft: REROLL_BUDGET,
+  picksLeft: PICKS_BUDGET,
   radiusTier: 0,       // 0 = city default, 1 = 2x, 2 = 4x, 3 = 8x
   committed: false,    // user has tapped the card to claim it
   usingMocks: false,   // true when the live API failed and we fell back
   locationStatus: 'unknown', // unknown | granted | prompt | denied | unsupported
   locationReturnTo: null,    // where to return when leaving the location view
+  decoding: false,     // true while the new pick's name is decoding into view
+  decodeText: '',      // current decode-in-progress display string
 };
 
 /* --- routing --- */
@@ -271,14 +273,14 @@ const views = {
         el('h2', { class: 'title-md', style: 'margin-top:6px' }, c ? 'GO HERE.' : "HERE'S THE 🔥💩"),
         el('div', { class: 'results' }, resultCard(r, c)),
         el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:10px;flex-wrap:wrap' },
-          el('div', { class: 'mono', style: 'font-size:11px;font-weight:700;letter-spacing:0.08em;opacity:0.75' }, `↺ ${state.rerollsLeft} REROLL${state.rerollsLeft === 1 ? '' : 'S'} LEFT`),
+          el('div', { class: 'mono', style: 'font-size:11px;font-weight:700;letter-spacing:0.08em;opacity:0.75' }, `↺ ${state.picksLeft} MORE LEFT`),
           distRight ? el('div', { class: 'mono', style: 'font-size:11px;font-weight:700;letter-spacing:0.08em;opacity:0.75' }, distRight) : null,
         ),
       );
     },
     keys: () => [
       { n: 1, label: '◀ BACK', onClick: () => resetCategory() },
-      { n: 2, label: state.rerollsLeft > 0 ? `↺ REROLL` : 'NO REROLLS', disabled: state.rerollsLeft === 0, onClick: rerollPick },
+      { label: state.picksLeft > 0 ? '↺ ANOTHER' : 'NO MORE', disabled: state.picksLeft === 0 || state.decoding, onClick: nextPick },
     ],
   },
 
@@ -354,10 +356,12 @@ function resultCard(r, committed) {
   if (!r) return el('div');
   const showLocWarning = state.usingMocks
     && (state.locationStatus === 'denied' || state.locationStatus === 'unsupported');
+  const decoding = state.decoding;
+  const displayName = decoding ? state.decodeText : r.name.toUpperCase();
   const body = [
-    el('div', { class: 'card-tag' }, committed ? 'YOUR PICK' : 'SUGGESTION'),
+    el('div', { class: 'card-tag' }, committed ? 'YOUR PICK' : decoding ? 'RESOLVING' : 'SUGGESTION'),
     el('div', { class: 'card-head' },
-      el('div', { class: 'card-name' }, r.name.toUpperCase()),
+      el('div', { class: 'card-name' }, displayName),
       el('div', { class: 'card-rating' }, `★${r.rating.toFixed(1)}`),
     ),
     el('div', { class: 'card-addr' }, '◉ ' + r.addr.toUpperCase()),
@@ -395,13 +399,16 @@ function resultCard(r, committed) {
   ];
 
   return el('div', {
-    class: 'card hero' + (committed ? ' committed' : ''),
+    class: 'card hero'
+      + (committed ? ' committed' : '')
+      + (decoding ? ' decoding' : ''),
     role: 'button',
-    tabindex: '0',
+    tabindex: decoding ? '-1' : '0',
     'aria-pressed': committed ? 'true' : 'false',
+    'aria-busy': decoding ? 'true' : 'false',
     'aria-label': committed ? `Tap to unlock ${r.name}` : `Tap to lock in ${r.name}`,
-    onClick: toggleCommit,
-    onKeydown: (e) => {
+    onClick: decoding ? undefined : toggleCommit,
+    onKeydown: decoding ? undefined : (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         toggleCommit();
@@ -447,29 +454,66 @@ function resetCategory() {
   state.pool = [];
   state.shown = [];
   state.pick = null;
-  state.rerollsLeft = REROLL_BUDGET;
+  state.picksLeft = PICKS_BUDGET;
   state.radiusTier = 0;
   state.committed = false;
   state.usingMocks = false;
+  state.decoding = false;
+  state.decodeText = '';
   go('categories');
 }
 
-function rerollPick() {
-  if (state.rerollsLeft <= 0) return;
-  state.rerollsLeft -= 1;
+// Decode a target string left-to-right over ~450ms. Letters/digits flicker
+// through noise glyphs; spaces and punctuation pass through. Re-renders on
+// each step. Resolves when fully decoded.
+function startDecode(target) {
+  return new Promise((resolve) => {
+    const NOISE = '▓▒░@#%&*+=?!/\\|<>{}[]';
+    const upper = (target || '').toUpperCase();
+    const chars = upper.split('');
+    const isReplaceable = (c) => /[A-Z0-9]/.test(c);
+    const stepsTotal = 9;
+    const stepMs = 50;
+    let step = 0;
+    state.decoding = true;
+    state.decodeText = chars.map((c) => isReplaceable(c)
+      ? NOISE[Math.floor(Math.random() * NOISE.length)] : c).join('');
+    render();
+    const id = setInterval(() => {
+      step += 1;
+      if (step >= stepsTotal) {
+        clearInterval(id);
+        state.decoding = false;
+        state.decodeText = upper;
+        render();
+        resolve();
+        return;
+      }
+      const resolved = Math.floor((step / stepsTotal) * chars.length);
+      state.decodeText = chars.map((c, i) => {
+        if (i < resolved) return c;
+        if (!isReplaceable(c)) return c;
+        return NOISE[Math.floor(Math.random() * NOISE.length)];
+      }).join('');
+      render();
+    }, stepMs);
+  });
+}
+
+async function nextPick() {
+  if (state.picksLeft <= 0 || state.decoding) return;
+  state.picksLeft -= 1;
   state.committed = false;
-  go('loading');
-  setTimeout(() => {
-    if (state.view !== 'loading') return;
-    const next = drawFromPool();
-    if (!next) {
-      go('empty');
-      return;
-    }
-    state.pick = next;
-    go('result');
-    if (USE_LIVE_API && !state.usingMocks) ensureBlurb(next);
-  }, 900 + Math.random() * 400);
+  const next = drawFromPool();
+  if (!next) {
+    go('empty');
+    return;
+  }
+  // Stay on the result view — the card decodes in place into the new pick.
+  state.pick = next;
+  await startDecode(next.name);
+  fx.result();
+  if (USE_LIVE_API && !state.usingMocks) ensureBlurb(next);
 }
 
 function categoryEmoji(label) {
@@ -665,13 +709,15 @@ function formatDistance(distanceMi) {
 async function pickCategory(label, opts = {}) {
   const radiusTier = Number.isFinite(opts.radiusTier) ? opts.radiusTier : 0;
   state.category = label;
-  state.rerollsLeft = REROLL_BUDGET;
+  state.picksLeft = PICKS_BUDGET;
   state.shown = [];
   state.pool = [];
   state.pick = null;
   state.committed = false;
   state.radiusTier = radiusTier;
   state.usingMocks = false;
+  state.decoding = false;
+  state.decodeText = '';
   go('loading');
 
   const minWait = 1600 + Math.random() * 600;

@@ -438,6 +438,27 @@ body {
   border-color: var(--accent);
   box-shadow: 4px 4px 0 var(--accent);
 }
+.card.decoding {
+  cursor: progress;
+}
+.card.decoding .card-name {
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0;
+}
+.card.decoding .card-tag {
+  color: var(--accent);
+  border-color: var(--accent);
+  animation: text-blink 0.6s steps(2, end) infinite;
+}
+.card.decoding .card-addr,
+.card.decoding .card-hours,
+.card.decoding .card-blurb,
+.card.decoding .card-buzz,
+.card.decoding .card-locwarn {
+  opacity: 0.22;
+  filter: blur(1px);
+  transition: opacity 0.18s ease, filter 0.18s ease;
+}
 .card-actions {
   display: flex;
   gap: 8px;
