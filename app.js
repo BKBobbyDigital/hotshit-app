@@ -318,28 +318,25 @@ function resultCard(r, committed) {
     ),
   ];
 
-  if (committed) {
-    return el('article', { class: 'card hero committed' }, ...body);
-  }
   return el('div', {
-    class: 'card hero',
+    class: 'card hero' + (committed ? ' committed' : ''),
     role: 'button',
     tabindex: '0',
-    'aria-label': `Tap to lock in ${r.name}`,
-    onClick: commitPick,
+    'aria-pressed': committed ? 'true' : 'false',
+    'aria-label': committed ? `Tap to unlock ${r.name}` : `Tap to lock in ${r.name}`,
+    onClick: toggleCommit,
     onKeydown: (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        commitPick();
+        toggleCommit();
       }
     },
   }, ...body);
 }
 
-function commitPick() {
-  if (state.committed) return;
-  state.committed = true;
-  fx.commit();
+function toggleCommit() {
+  state.committed = !state.committed;
+  if (state.committed) fx.commit(); else fx.click();
   render();
 }
 
