@@ -1,12 +1,12 @@
 :root {
-  --paper: #f0ece2;
-  --paper-2: #e7e2d4;
-  --ink: #1a1a1a;
-  --muted: #6b6459;
-  --accent: #ff5a1f;
-  --lcd: #b5b097;
-  --lcd-shadow: rgba(0, 0, 0, 0.18);
-  --grid: rgba(26, 26, 26, 0.07);
+  --paper: #d1d3d4;
+  --paper-2: #c1c4c5;
+  --ink: #231f20;
+  --muted: #5a5e62;
+  --accent: #f15a22;
+  --lcd: #818e95;
+  --lcd-shadow: rgba(0, 0, 0, 0.22);
+  --grid: rgba(35, 31, 32, 0.05);
   --shadow-key: 3px 3px 0 var(--ink);
   --shadow-key-down: 1px 1px 0 var(--ink);
   --pad-lcd: clamp(12px, 3.5cqi, 18px);
@@ -114,7 +114,7 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(rgba(0, 0, 0, 0.07) 0.6px, transparent 0.6px);
+  background-image: radial-gradient(rgba(0, 0, 0, 0.11) 0.6px, transparent 0.6px);
   background-size: 3px 3px;
   z-index: 1;
 }
