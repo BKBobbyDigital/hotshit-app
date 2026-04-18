@@ -382,15 +382,15 @@ function openMap(r) {
 /* --- theme --- */
 const THEME_ORDER = ['auto', 'light', 'dark'];
 const THEME_GLYPH = { auto: '◐', light: '○', dark: '●' };
+const darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
 let themePref = localStorage.getItem('hotshit.theme') || 'auto';
 
+function effectiveTheme(pref) {
+  return pref === 'auto' ? (darkMQ.matches ? 'dark' : 'light') : pref;
+}
+
 function applyTheme(pref) {
-  const root = document.documentElement;
-  if (pref === 'auto') {
-    root.removeAttribute('data-theme');
-  } else {
-    root.setAttribute('data-theme', pref);
-  }
+  document.documentElement.setAttribute('data-theme', effectiveTheme(pref));
   const btn = document.getElementById('themeToggle');
   if (btn) {
     btn.firstChild.textContent = THEME_GLYPH[pref];
@@ -401,11 +401,14 @@ function applyTheme(pref) {
 }
 
 function cycleTheme() {
-  const next = THEME_ORDER[(THEME_ORDER.indexOf(themePref) + 1) % THEME_ORDER.length];
-  themePref = next;
-  localStorage.setItem('hotshit.theme', next);
-  applyTheme(next);
+  themePref = THEME_ORDER[(THEME_ORDER.indexOf(themePref) + 1) % THEME_ORDER.length];
+  localStorage.setItem('hotshit.theme', themePref);
+  applyTheme(themePref);
 }
+
+darkMQ.addEventListener('change', () => {
+  if (themePref === 'auto') applyTheme('auto');
+});
 
 /* --- boot --- */
 document.addEventListener('DOMContentLoaded', () => {
