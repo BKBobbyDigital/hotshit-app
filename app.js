@@ -96,13 +96,14 @@ const el = (tag, attrs = {}, ...children) => {
 /* --- state --- */
 const REROLL_BUDGET = 3; // rerolls allowed per category before kicking back
 const state = {
-  view: 'landing', // landing | categories | loading | result | commit | empty
+  view: 'landing', // landing | categories | loading | result | empty
   category: null,
   coords: null,
   pool: [],          // remaining places we haven't shown yet for this category
   shown: [],         // places we've already served (so we don't repeat)
   pick: null,        // current single result on screen
   rerollsLeft: REROLL_BUDGET,
+  committed: false,  // user has tapped the card to claim it
 };
 
 /* --- routing --- */
@@ -237,16 +238,17 @@ const views = {
   },
 
   result: {
-    mode: () => `🔥💩 · ${categoryEmoji(state.category)} · GO HERE`,
+    mode: () => `🔥💩 · ${categoryEmoji(state.category)} · ${state.committed ? 'LOCKED IN' : 'PICK'}`,
     screen: () => {
       const r = state.pick;
+      const c = state.committed;
       return el('div', { class: 'screen' },
         el('div', { style: 'display:flex;justify-content:space-between;align-items:baseline' },
-          el('div', { class: 'prompt' }, `> PICKED · ${categoryEmoji(state.category)}`),
-          el('div', { class: 'mono', style: 'font-size:11px;font-weight:700;color:var(--accent);letter-spacing:0.08em' }, '● LOCKED'),
+          el('div', { class: 'prompt' }, c ? `> LOCKED IN · ${categoryEmoji(state.category)}` : `> CONSIDER · ${categoryEmoji(state.category)}`),
+          el('div', { class: 'mono', style: `font-size:11px;font-weight:700;letter-spacing:0.08em;color:${c ? 'var(--accent)' : 'var(--muted)'}` }, c ? '● LOCKED' : '○ TAP TO LOCK'),
         ),
-        el('h2', { class: 'title-md', style: 'margin-top:6px' }, "GO HERE."),
-        el('div', { class: 'results' }, resultCard(r)),
+        el('h2', { class: 'title-md', style: 'margin-top:6px' }, c ? 'GO HERE.' : "HERE'S THE 🔥💩"),
+        el('div', { class: 'results' }, resultCard(r, c)),
         el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-top:14px' },
           el('div', { class: 'mono', style: 'font-size:11px;font-weight:700;letter-spacing:0.08em;opacity:0.75' }, `↺ ${state.rerollsLeft} REROLL${state.rerollsLeft === 1 ? '' : 'S'} LEFT`),
           el('div', { class: 'mono', style: 'font-size:11px;font-weight:700;letter-spacing:0.08em;opacity:0.75' }, '0.4mi · ~8 MIN'),
@@ -256,39 +258,6 @@ const views = {
     keys: () => [
       { n: 1, label: '◀ BACK', onClick: () => resetCategory() },
       { n: 2, label: state.rerollsLeft > 0 ? `↺ REROLL` : 'NO REROLLS', disabled: state.rerollsLeft === 0, onClick: rerollPick },
-      { n: 3, label: 'GO ▶', primary: true, onClick: () => go('commit') },
-    ],
-  },
-
-  commit: {
-    mode: () => `🔥💩 · LOCKED IN`,
-    screen: () => {
-      const r = state.pick || {};
-      return el('div', { class: 'screen', style: 'display:flex;flex-direction:column;flex:1' },
-        el('div', { class: 'prompt' }, '> ', el('span', { class: 'accent' }, 'COMMITTED.')),
-        el('h1', { class: 'title-xl', style: 'margin-top:14px' }, 'GOING'),
-        el('h1', { class: 'title-xl' }, 'HERE.'),
-        el('div', { class: 'divider' }),
-        el('div', { class: 'commit-place' },
-          el('div', { class: 'commit-name' }, (r.name || '').toUpperCase()),
-          el('div', { class: 'commit-addr' }, '◉ ' + (r.addr || '').toUpperCase()),
-          r.hoursText && el('div', { class: 'commit-hours' },
-            el('span', { class: 'card-hours-dot' }, '●'), ' ' + r.hoursText,
-          ),
-        ),
-        el('div', { class: 'spacer' }),
-        el('div', { class: 'commit-walk' },
-          el('div', { class: 'mono', style: 'font-size:11px;letter-spacing:0.15em;opacity:0.6' }, 'WALK TIME'),
-          el('div', { class: 'walk-time' }, '~8 MIN'),
-          el('div', { class: 'mono', style: 'font-size:11px;letter-spacing:0.15em;opacity:0.6' }, '0.4 MI'),
-        ),
-        el('div', { class: 'stamp' }, 'LOCKED IN'),
-      );
-    },
-    keys: () => [
-      { n: 1, label: '◀ NOT YET', onClick: () => go('result') },
-      { n: 2, label: '📍 OPEN MAP', primary: true, onClick: () => openMap(state.pick) },
-      { n: 3, label: '↗ SHARE', onClick: () => sharePick(state.pick) },
     ],
   },
 
@@ -317,10 +286,10 @@ const views = {
   },
 };
 
-function resultCard(r) {
+function resultCard(r, committed) {
   if (!r) return el('div');
-  return el('article', { class: 'card inverse hero' },
-    el('div', { class: 'card-tag' }, 'PICKED'),
+  const body = [
+    el('div', { class: 'card-tag' }, committed ? 'YOUR PICK' : 'SUGGESTION'),
     el('div', { class: 'card-head' },
       el('div', { class: 'card-name' }, r.name.toUpperCase()),
       el('div', { class: 'card-rating' }, `★${r.rating.toFixed(1)}`),
@@ -334,7 +303,36 @@ function resultCard(r) {
     el('div', { class: 'card-buzz' },
       ...r.buzz.map((b) => el('span', { class: 'buzz' }, b)),
     ),
-  );
+    committed && el('div', { class: 'stamp stamp-card' }, 'LOCKED IN'),
+    committed && el('div', { class: 'card-actions' },
+      el('button', {
+        type: 'button',
+        class: 'card-action',
+        onClick: (e) => { e.stopPropagation(); fx.click(); sharePick(r); },
+      }, '↗ SHARE'),
+      el('button', {
+        type: 'button',
+        class: 'card-action primary',
+        onClick: (e) => { e.stopPropagation(); fx.primary(); openMap(r); },
+      }, '📍 OPEN MAP'),
+    ),
+  ];
+
+  if (committed) {
+    return el('article', { class: 'card hero committed' }, ...body);
+  }
+  return el('button', {
+    type: 'button',
+    class: 'card hero',
+    onClick: commitPick,
+  }, ...body);
+}
+
+function commitPick() {
+  if (state.committed) return;
+  state.committed = true;
+  fx.commit();
+  render();
 }
 
 function shuffle(arr) {
@@ -363,12 +361,14 @@ function resetCategory() {
   state.shown = [];
   state.pick = null;
   state.rerollsLeft = REROLL_BUDGET;
+  state.committed = false;
   go('categories');
 }
 
 function rerollPick() {
   if (state.rerollsLeft <= 0) return;
   state.rerollsLeft -= 1;
+  state.committed = false;
   go('loading');
   setTimeout(() => {
     if (state.view !== 'loading') return;
@@ -431,6 +431,7 @@ async function pickCategory(label) {
   state.shown = [];
   state.pool = shuffle(filterOpenNow(MOCK_RESULTS[label] || MOCK_RESULTS.Random));
   state.pick = null;
+  state.committed = false;
   go('loading');
   const minWait = 1600 + Math.random() * 600;
   // Kick off both in parallel: the system permission dialog (if not yet
@@ -532,7 +533,6 @@ const fx = {
 function fxForView(view) {
   if (view === 'result') fx.result();
   else if (view === 'empty') fx.empty();
-  else if (view === 'commit') fx.commit();
 }
 function setMuted(next) {
   muted = next;

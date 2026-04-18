@@ -402,6 +402,64 @@ body {
 .card.hero {
   padding: clamp(20px, 6cqi, 30px) clamp(18px, 5cqi, 26px);
 }
+.card.hero.committed {
+  border-color: var(--accent);
+  box-shadow: 4px 4px 0 var(--accent);
+}
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: clamp(16px, 4.5cqi, 22px);
+  padding-top: clamp(14px, 4cqi, 18px);
+  border-top: 1.5px dashed var(--ink);
+}
+.card-action {
+  appearance: none;
+  flex: 1;
+  font: inherit;
+  font-family: 'Archivo Black', sans-serif;
+  font-size: clamp(13px, 4cqi, 16px);
+  letter-spacing: 0.05em;
+  border: 2px solid var(--ink);
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: clamp(10px, 3cqi, 14px) 8px;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--ink);
+  transition: transform 0.06s ease, box-shadow 0.06s ease;
+}
+.card-action:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+.card-action.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent-line);
+  box-shadow: 2px 2px 0 var(--accent-line);
+}
+:root[data-theme="dark"] .card-action.primary {
+  background: var(--ink);
+  color: var(--key-primary-fg);
+  border-color: var(--key-primary-fg);
+  box-shadow: 2px 2px 0 var(--key-primary-fg);
+}
+.stamp-card {
+  position: absolute;
+  top: clamp(-12px, -3cqi, -8px);
+  right: clamp(8px, 3cqi, 18px);
+  transform: rotate(8deg);
+  border: 3px solid var(--accent);
+  color: var(--accent);
+  font-family: 'Archivo Black', sans-serif;
+  font-size: clamp(13px, 3.8cqi, 16px);
+  letter-spacing: 0.18em;
+  padding: 4px 10px;
+  background: var(--lcd);
+  pointer-events: none;
+  text-shadow: none;
+}
 .card.hero .card-name {
   font-size: clamp(24px, 8cqi, 36px);
   letter-spacing: -0.6px;
@@ -455,66 +513,6 @@ body {
   text-transform: uppercase;
   padding: 3px 8px;
   border: 1.5px solid currentColor;
-}
-
-/* Commit / GOING HERE screen */
-.commit-place {
-  margin-top: clamp(14px, 4cqi, 22px);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.commit-name {
-  font-family: 'Archivo Black', sans-serif;
-  font-size: clamp(22px, 7cqi, 32px);
-  letter-spacing: -0.4px;
-  line-height: 1.05;
-}
-.commit-addr {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: clamp(11px, 3.2cqi, 14px);
-  letter-spacing: 0.04em;
-  opacity: 0.85;
-}
-.commit-hours {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: clamp(12px, 3.5cqi, 15px);
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 0.08em;
-  margin-top: 6px;
-}
-.commit-walk {
-  border: 2px solid var(--ink);
-  border-radius: 4px;
-  padding: clamp(12px, 3.5cqi, 18px);
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 8px;
-}
-.walk-time {
-  font-family: 'Archivo Black', sans-serif;
-  font-size: clamp(28px, 9cqi, 44px);
-  letter-spacing: -0.6px;
-  line-height: 1;
-}
-.stamp {
-  position: absolute;
-  top: clamp(60px, 18cqi, 110px);
-  right: clamp(-8px, -2cqi, -4px);
-  transform: rotate(8deg);
-  border: 3px solid var(--accent);
-  color: var(--accent);
-  font-family: 'Archivo Black', sans-serif;
-  font-size: clamp(14px, 4cqi, 18px);
-  letter-spacing: 0.18em;
-  padding: 5px 10px;
-  background: transparent;
-  pointer-events: none;
-  opacity: 0.85;
-  text-shadow: none;
 }
 
 /* Share toast (clipboard fallback) */
