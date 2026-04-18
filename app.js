@@ -283,6 +283,7 @@ const views = {
     keys: () => [
       { n: 1, label: '◀ NOT YET', onClick: () => go('result') },
       { n: 2, label: '📍 OPEN MAP', primary: true, onClick: () => openMap(state.pick) },
+      { n: 3, label: '↗ SHARE', onClick: () => sharePick(state.pick) },
     ],
   },
 
@@ -448,6 +449,39 @@ function openMap(r) {
   if (!r) return;
   const q = encodeURIComponent(`${r.name} ${r.addr}`);
   window.open(`https://maps.google.com/?q=${q}`, '_blank', 'noopener');
+}
+
+async function sharePick(r) {
+  if (!r) return;
+  const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(`${r.name} ${r.addr}`)}`;
+  const text = `🔥💩 going to ${r.name} — ${r.addr}\n${mapsUrl}`;
+  const payload = { title: 'Hot Shit', text, url: mapsUrl };
+  try {
+    if (navigator.share && (!navigator.canShare || navigator.canShare(payload))) {
+      await navigator.share(payload);
+      return;
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    flashShareToast('COPIED.');
+  } catch {
+    window.prompt('Copy and share:', text);
+  }
+}
+
+function flashShareToast(msg) {
+  const existing = document.getElementById('shareToast');
+  if (existing) existing.remove();
+  const t = el('div', { id: 'shareToast', class: 'share-toast' }, msg);
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('on'));
+  setTimeout(() => {
+    t.classList.remove('on');
+    setTimeout(() => t.remove(), 280);
+  }, 1400);
 }
 
 /* --- theme --- */

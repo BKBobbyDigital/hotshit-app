@@ -517,6 +517,29 @@ body {
   text-shadow: none;
 }
 
+/* Share toast (clipboard fallback) */
+.share-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  transform: translate(-50%, 12px);
+  background: var(--ink);
+  color: var(--lcd);
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  padding: 10px 16px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  box-shadow: 3px 3px 0 var(--ink);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 200;
+}
+.share-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
 /* Empty state */
 .empty {
   display: flex;
