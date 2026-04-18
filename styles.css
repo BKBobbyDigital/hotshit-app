@@ -34,8 +34,19 @@
   --text-on-alt: #b6ffc7;
   --bloom: 0 0 6px currentColor;
   --accent-line: #7a2e10;
+  --key-primary-bg: var(--ink);
+  --key-primary-fg: #0a1820;
   color-scheme: dark;
 }
+
+:root[data-theme="dark"] .key.primary {
+  background: var(--key-primary-bg);
+  color: var(--key-primary-fg);
+  border-color: var(--key-primary-fg);
+  --shadow-key: 3px 3px 0 var(--key-primary-fg);
+  --shadow-key-down: 1px 1px 0 var(--key-primary-fg);
+}
+:root[data-theme="dark"] .key.primary .num { color: var(--key-primary-fg); }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
