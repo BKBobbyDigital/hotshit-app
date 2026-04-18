@@ -19,7 +19,9 @@ const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 200;
 // Bump to invalidate all cached blurbs (e.g., after tuning the system prompt
 // or switching models). v2 added Place Details review context + Sonnet upgrade.
-const BLURB_VERSION = 2;
+// v3 added currentOpeningHours.periods so the client can compute live
+// 'CLOSES IN N MIN' instead of a static OPEN UNTIL string.
+const BLURB_VERSION = 3;
 const cacheKeyFor = (place_id) => `${place_id}@v${BLURB_VERSION}`;
 
 const SYSTEM = `You write short venue blurbs for Hot Shit, an app that helps friends decide where to go out.
@@ -62,7 +64,7 @@ async function fetchPlaceDetails(place_id) {
       method: 'GET',
       headers: {
         'X-Goog-Api-Key': process.env.GOOGLE_PLACES_KEY,
-        'X-Goog-FieldMask': 'reviews,editorialSummary,priceLevel',
+        'X-Goog-FieldMask': 'reviews,editorialSummary,priceLevel,currentOpeningHours.periods',
       },
     });
     if (!resp.ok) {
@@ -100,7 +102,8 @@ export default async (req) => {
     }
 
     // Pull review snippets + editorial summary to give Claude actual
-    // per-place material to work from.
+    // per-place material to work from. Hours periods come along for the
+    // client to compute live 'CLOSES IN N MIN' against the current time.
     const details = await fetchPlaceDetails(place_id);
     const reviews = (details?.reviews || [])
       .slice(0, 3)
@@ -108,6 +111,7 @@ export default async (req) => {
       .filter(Boolean);
     const editorial = details?.editorialSummary?.text || null;
     const priceLevel = details?.priceLevel || null;
+    const periods = details?.currentOpeningHours?.periods || null;
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const userMsg = [
@@ -141,6 +145,8 @@ export default async (req) => {
     const out = {
       blurb: parsed.blurb.trim().slice(0, 120),
       buzzwords: parsed.buzzwords.slice(0, 3).map((b) => String(b).trim().slice(0, 14)),
+      periods,
+      priceLevel,
     };
     while (out.buzzwords.length < 3) out.buzzwords.push(fb.buzzwords[out.buzzwords.length]);
 
