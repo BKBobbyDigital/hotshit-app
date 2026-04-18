@@ -98,7 +98,7 @@ const REROLL_BUDGET = 3; // rerolls allowed per category before kicking back
 const MAX_RADIUS_TIER = 3;
 const USE_LIVE_API = !/\bmock=1\b/.test(window.location.search);
 const state = {
-  view: 'landing', // landing | categories | loading | result | empty
+  view: 'landing', // landing | categories | loading | result | empty | location
   category: null,
   coords: null,
   pool: [],            // remaining places we haven't shown yet for this category
@@ -108,6 +108,8 @@ const state = {
   radiusTier: 0,       // 0 = city default, 1 = 2x, 2 = 4x, 3 = 8x
   committed: false,    // user has tapped the card to claim it
   usingMocks: false,   // true when the live API failed and we fell back
+  locationStatus: 'unknown', // unknown | granted | prompt | denied | unsupported
+  locationReturnTo: null,    // where to return when leaving the location view
 };
 
 /* --- routing --- */
@@ -277,6 +279,40 @@ const views = {
     ],
   },
 
+  location: {
+    mode: () => '🔥💩 · LOCATION OFF',
+    screen: () => {
+      const denied = state.locationStatus === 'denied';
+      const unsupported = state.locationStatus === 'unsupported';
+      return el('div', { class: 'screen' },
+        el('div', { class: 'prompt' }, '> ', el('span', { class: 'accent' },
+          unsupported ? 'NOT SUPPORTED' : denied ? 'PERMISSION DENIED' : 'WAITING ON YOU')),
+        el('h1', { class: 'title-xl', style: 'margin-top:14px' }, 'YOU'),
+        el('h1', { class: 'title-xl' }, 'SAID', el('span', { style: 'color:var(--accent)' }, ' NO.')),
+        el('div', { class: 'divider' }),
+        el('p', { class: 'lcd-copy', style: 'margin:0' },
+          unsupported
+            ? 'this browser doesn\'t share location.'
+            : denied
+              ? 'we\'re showing sample picks until you flip it back on.'
+              : 'we need your location to find shit nearby.',
+        ),
+        el('p', { class: 'lcd-copy', style: 'margin-top:14px;font-size:clamp(12px,3.6cqi,15px);opacity:0.85' },
+          denied
+            ? 'tap the lock icon in your browser → location → allow.'
+            : 'tap ASK AGAIN to retry.',
+        ),
+        el('div', { class: 'spacer' }),
+        el('div', { class: 'mono', style: 'text-align:center;font-size:clamp(11px,3cqi,13px);letter-spacing:0.18em;opacity:0.7' },
+          `STATUS · ${(state.locationStatus || 'unknown').toUpperCase()}`),
+      );
+    },
+    keys: () => [
+      { label: '◀ BACK', onClick: () => go(state.locationReturnTo || 'landing') },
+      { label: 'ASK AGAIN', primary: true, onClick: askLocationAgain },
+    ],
+  },
+
   empty: {
     mode: () => '🔥💩 · NO SIGNAL',
     screen: () => {
@@ -313,6 +349,8 @@ const views = {
 
 function resultCard(r, committed) {
   if (!r) return el('div');
+  const showLocWarning = state.usingMocks
+    && (state.locationStatus === 'denied' || state.locationStatus === 'unsupported');
   const body = [
     el('div', { class: 'card-tag' }, committed ? 'YOUR PICK' : 'SUGGESTION'),
     el('div', { class: 'card-head' },
@@ -324,6 +362,11 @@ function resultCard(r, committed) {
       el('span', { class: 'card-hours-dot' }, '●'),
       ' ' + r.hoursText,
     ),
+    showLocWarning && el('button', {
+      type: 'button',
+      class: 'card-locwarn',
+      onClick: (e) => { e.stopPropagation(); showLocationOverlay(); },
+    }, '● SAMPLE PICK · LOCATION OFF · TAP TO FIX'),
     r.blurb ? el('p', { class: 'card-blurb' }, r.blurb) : null,
     r.buzz && r.buzz.length ? el('div', { class: 'card-buzz' },
       ...r.buzz.map((b) => el('span', { class: 'buzz' }, b)),
@@ -444,21 +487,77 @@ function animateBar(bar) {
 }
 
 /* --- actions --- */
+async function refreshLocationStatus() {
+  if (!navigator.geolocation) {
+    state.locationStatus = 'unsupported';
+    return state.locationStatus;
+  }
+  if (!navigator.permissions) return state.locationStatus;
+  try {
+    const r = await navigator.permissions.query({ name: 'geolocation' });
+    state.locationStatus = r.state; // 'granted' | 'denied' | 'prompt'
+  } catch {
+    /* ignore — leave whatever we last knew */
+  }
+  return state.locationStatus;
+}
+
 function ensureLocation() {
-  // Resolves to coords (or null if denied/unavailable). Browser caches the
-  // permission grant so this is silent on subsequent calls.
+  // Resolves to coords (or null if denied/unavailable). Updates locationStatus
+  // as a side effect so the badge / inline warning can reflect reality.
   if (state.coords) return Promise.resolve(state.coords);
-  if (!navigator.geolocation) return Promise.resolve(null);
+  if (!navigator.geolocation) {
+    state.locationStatus = 'unsupported';
+    updateLocBadge();
+    return Promise.resolve(null);
+  }
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         state.coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        state.locationStatus = 'granted';
+        updateLocBadge();
         resolve(state.coords);
       },
-      () => resolve(null),
+      (err) => {
+        // err.code 1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT
+        if (err && err.code === 1) state.locationStatus = 'denied';
+        else if (state.locationStatus === 'unknown') state.locationStatus = 'prompt';
+        updateLocBadge();
+        resolve(null);
+      },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
     );
   });
+}
+
+function updateLocBadge() {
+  const badge = document.getElementById('locBadge');
+  if (!badge) return;
+  const off = state.locationStatus === 'denied' || state.locationStatus === 'unsupported';
+  badge.hidden = !off;
+}
+
+async function askLocationAgain() {
+  // Force a fresh attempt — clear cached coords so ensureLocation actually
+  // calls getCurrentPosition again. Browser handles whether to show the
+  // system dialog (yes if 'prompt', no if 'denied' — silent fail then).
+  state.coords = null;
+  await refreshLocationStatus();
+  const coords = await ensureLocation();
+  if (coords) {
+    // Granted! return to where they came from.
+    go(state.locationReturnTo || 'landing');
+  } else {
+    // Still off — re-render the location view so the status text updates.
+    render();
+  }
+}
+
+function showLocationOverlay() {
+  fx.click();
+  state.locationReturnTo = state.view;
+  go('location');
 }
 
 async function fetchPool(lat, lon, category, radiusTier) {
@@ -704,6 +803,24 @@ document.addEventListener('DOMContentLoaded', () => {
   if (themeBtn) themeBtn.addEventListener('click', () => { fx.click(); cycleTheme(); });
   const muteBtn = document.getElementById('muteToggle');
   if (muteBtn) muteBtn.addEventListener('click', () => { setMuted(!muted); if (!muted) fx.click(); });
+  const locBtn = document.getElementById('locBadge');
+  if (locBtn) locBtn.addEventListener('click', showLocationOverlay);
+
+  // Wire up the Permissions API change event so the app auto-recovers when
+  // the user re-enables location in browser settings — no refresh needed.
+  refreshLocationStatus().then(() => {
+    updateLocBadge();
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'geolocation' }).then((perm) => {
+        perm.addEventListener('change', () => {
+          state.locationStatus = perm.state;
+          if (perm.state === 'granted') state.coords = null; // re-fetch next call
+          updateLocBadge();
+          render();
+        });
+      }).catch(() => {});
+    }
+  });
 
   const deepLinkCat = categoryFromUrl();
   if (deepLinkCat) {
