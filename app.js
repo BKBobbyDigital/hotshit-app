@@ -88,7 +88,7 @@ const el = (tag, attrs = {}, ...children) => {
 /* --- state --- */
 const REROLL_BUDGET = 3; // rerolls allowed per category before kicking back
 const state = {
-  view: 'landing', // landing | permission | loading | categories | result | empty
+  view: 'landing', // landing | categories | loading | result | empty
   category: null,
   coords: null,
   pool: [],          // remaining places we haven't shown yet for this category
@@ -151,31 +151,7 @@ const views = {
       ),
     ),
     keys: () => [
-      { n: 1, label: 'FIND 🔥💩', primary: true, xl: true, onClick: requestLocation },
-    ],
-  },
-
-  permission: {
-    mode: () => '🔥💩 · REQ LOC',
-    screen: () => el('div', { class: 'screen' },
-      el('div', { class: 'prompt' }, '> ', el('span', { class: 'accent' }, 'GEOLOCATION REQ')),
-      el('h1', { class: 'title-lg', style: 'margin-top:14px' }, 'WHERE'),
-      el('h1', { class: 'title-lg' }, 'U AT'),
-      el('h1', { class: 'title-lg', style: 'color:var(--accent)' }, '?'),
-      el('div', { class: 'hr' }),
-      el('p', { class: 'lede', style: 'margin:0' },
-        'we ask the phone,', el('br'),
-        'the phone asks you.', el('br'),
-        'coordinates evaporate', el('br'),
-        'in 8 seconds.',
-      ),
-      el('div', { class: 'spacer' }),
-      el('div', { class: 'mono', style: 'font-size:11px;opacity:0.7' }, '◉ . . . waiting'),
-    ),
-    keys: () => [
-      { n: 1, label: 'NOPE', onClick: () => skipLocation() },
-      { n: 2, label: 'ALLOW', primary: true, onClick: requestLocation },
-      { n: 3, label: 'ZIP', disabled: true },
+      { n: 1, label: 'FIND 🔥💩', primary: true, xl: true, onClick: () => go('categories') },
     ],
   },
 
@@ -384,27 +360,24 @@ function animateBar(bar) {
 }
 
 /* --- actions --- */
-function requestLocation() {
-  if (!navigator.geolocation) { skipLocation(); return; }
-  go('permission');
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      state.coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-      go('categories');
-    },
-    () => {
-      skipLocation();
-    },
-    { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
-  );
+function ensureLocation() {
+  // Resolves to coords (or null if denied/unavailable). Browser caches the
+  // permission grant so this is silent on subsequent calls.
+  if (state.coords) return Promise.resolve(state.coords);
+  if (!navigator.geolocation) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        state.coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        resolve(state.coords);
+      },
+      () => resolve(null),
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
+    );
+  });
 }
 
-function skipLocation() {
-  state.coords = null;
-  go('categories');
-}
-
-function pickCategory(label) {
+async function pickCategory(label) {
   state.category = label;
   state.rerollsLeft = REROLL_BUDGET;
   state.shown = [];
@@ -412,16 +385,21 @@ function pickCategory(label) {
   state.pick = null;
   go('loading');
   const minWait = 1600 + Math.random() * 600;
-  setTimeout(() => {
-    if (state.view !== 'loading') return;
-    const next = drawFromPool();
-    if (!next) {
-      go('empty');
-      return;
-    }
-    state.pick = next;
-    go('result');
-  }, minWait);
+  // Kick off both in parallel: the system permission dialog (if not yet
+  // granted) and our minimum loader runtime. We don't gate results on
+  // location yet — mock data is ready immediately.
+  const [, ] = await Promise.all([
+    ensureLocation(),
+    new Promise((r) => setTimeout(r, minWait)),
+  ]);
+  if (state.view !== 'loading') return;
+  const next = drawFromPool();
+  if (!next) {
+    go('empty');
+    return;
+  }
+  state.pick = next;
+  go('result');
 }
 
 function openMap(r) {
