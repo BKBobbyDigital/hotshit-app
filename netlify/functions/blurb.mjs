@@ -27,18 +27,38 @@ Given a place's name, type, address, rating, and review count, return ONLY a JSO
 
 Return the JSON object and nothing else. No code fences, no commentary.`;
 
-const FALLBACK = {
-  blurb: 'Solid spot. Go.',
-  buzzwords: ['Local', 'Tested', 'Reliable'],
+// Category-flavored fallbacks used whenever the Claude call can't run
+// (no credits, rate limit, transient error). Better than a single generic
+// line showing up on every card.
+const FALLBACK_BY_TYPE = {
+  bar:                 { blurb: 'Pull up. Order something cold.',           buzzwords: ['Drinks', 'Pull Up', 'Local'] },
+  cocktail_bar:        { blurb: 'Sit at the bar. Ask what\'s good.',         buzzwords: ['Cocktails', 'Bar Seat', 'Vibe'] },
+  sports_bar:          { blurb: 'Pitchers and the game on every screen.',   buzzwords: ['Sports', 'Pitchers', 'Loud'] },
+  cafe:                { blurb: 'Caffeine, chair, done.',                    buzzwords: ['Coffee', 'Quiet', 'Chair'] },
+  coffee_shop:         { blurb: 'Caffeine, chair, done.',                    buzzwords: ['Coffee', 'Quiet', 'Chair'] },
+  hamburger_restaurant:{ blurb: 'Smash the burger. Don\'t overthink it.',    buzzwords: ['Burgers', 'Meat', 'Hands-on'] },
+  pizza_restaurant:    { blurb: 'Pizza. Eat it.',                            buzzwords: ['Pizza', 'Slice', 'Done'] },
+  sushi_restaurant:    { blurb: 'Counter seat if you can. Trust the chef.', buzzwords: ['Sushi', 'Counter', 'Omakase'] },
+  mexican_restaurant:  { blurb: 'Margs mandatory. Tacos likely.',            buzzwords: ['Tacos', 'Margs', 'Late'] },
+  karaoke:             { blurb: 'Private room. Pick your anthem.',           buzzwords: ['Karaoke', 'Late', 'Loud'] },
+  restaurant:          { blurb: 'Solid kitchen. Get there.',                 buzzwords: ['Food', 'Tested', 'Close'] },
 };
+const FALLBACK_DEFAULT = { blurb: 'Solid pick. Go.', buzzwords: ['Local', 'Tested', 'Close'] };
+
+function fallbackFor(typeHint) {
+  const key = (typeHint || '').toLowerCase();
+  return FALLBACK_BY_TYPE[key] || FALLBACK_DEFAULT;
+}
 
 export default async (req) => {
   if (req.method !== 'POST') {
     return json({ error: 'POST only' }, 405);
   }
+  let typeHint;
   try {
     const body = await req.json();
-    const { place_id, name, typeHint, addr, rating, reviewCount } = body || {};
+    let { place_id, name, typeHint: th, addr, rating, reviewCount } = body || {};
+    typeHint = th;
     if (!place_id || !name) {
       return json({ error: 'place_id and name required' }, 400);
     }
@@ -50,7 +70,7 @@ export default async (req) => {
 
     if (!process.env.ANTHROPIC_API_KEY) {
       console.error('[blurb] ANTHROPIC_API_KEY not set');
-      return json(FALLBACK);
+      return json(fallbackFor(typeHint));
     }
     console.log('[blurb] key ends with', process.env.ANTHROPIC_API_KEY.slice(-4));
 
@@ -76,15 +96,16 @@ export default async (req) => {
       // Claude replied but we couldn't parse into the right shape — serve
       // fallback to the client, but don't cache it so the next call retries.
       console.error('[blurb] parse failed for', place_id, 'raw:', text.slice(0, 200));
-      return json(FALLBACK);
+      return json(fallbackFor(typeHint));
     }
 
     // Sanity: clamp shape
+    const fb = fallbackFor(typeHint);
     const out = {
       blurb: parsed.blurb.trim().slice(0, 120),
       buzzwords: parsed.buzzwords.slice(0, 3).map((b) => String(b).trim().slice(0, 14)),
     };
-    while (out.buzzwords.length < 3) out.buzzwords.push(FALLBACK.buzzwords[out.buzzwords.length]);
+    while (out.buzzwords.length < 3) out.buzzwords.push(fb.buzzwords[out.buzzwords.length]);
 
     await store.setJSON(key, out);
     return json(out);
@@ -93,7 +114,7 @@ export default async (req) => {
     // function logs so we can actually debug.
     console.error('[blurb] exception:', e && (e.status || ''), e && (e.message || e));
     if (e && e.error) console.error('[blurb] api error body:', JSON.stringify(e.error));
-    return json(FALLBACK);
+    return json(fallbackFor(typeHint));
   }
 };
 
