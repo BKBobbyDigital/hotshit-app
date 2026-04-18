@@ -623,6 +623,41 @@ body {
   box-shadow: var(--shadow-key-down);
 }
 
+/* Landing */
+.landing-screen { display: flex; flex-direction: column; gap: 0; }
+.landing-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-top: clamp(10px, 3cqi, 18px);
+}
+.landing-logo {
+  font-size: clamp(72px, 22cqi, 120px);
+  letter-spacing: 8px;
+  line-height: 1;
+  margin-bottom: clamp(4px, 1.5cqi, 10px);
+  animation: logo-breathe 3.2s ease-in-out infinite;
+  transform-origin: left center;
+}
+@keyframes logo-breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.045); }
+}
+.landing-title { line-height: 0.86; }
+.landing-divider { margin-top: clamp(10px, 3cqi, 16px); }
+.landing-tagline {
+  margin-top: clamp(14px, 4cqi, 20px) !important;
+}
+.landing-ready {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(20px, 6cqi, 28px);
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.22em;
+  text-align: center;
+  padding-bottom: clamp(6px, 2cqi, 12px);
+}
+
 /* Screen transitions */
 .screen { animation: pop 0.18s ease-out; }
 @keyframes pop {
