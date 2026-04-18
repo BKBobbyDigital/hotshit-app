@@ -15,56 +15,64 @@ const CATEGORIES = [
 
 const MOCK_RESULTS = {
   Burgers: [
-    { name: 'Hamburger America', addr: '51 MacDougal St', rating: 4.7, buzz: ['Smash', 'Oklahoma', 'Onion'], blurb: 'Oklahoma onion burgers done right. Tiny dining room, big payoff.' },
-    { name: '7th Street Burger', addr: '91 7th St', rating: 4.5, buzz: ['Cheap', 'Stoner', 'Late'], blurb: 'Double-stack smash. Open late. Eat in the park.' },
-    { name: 'Corner Bistro', addr: '331 W 4th St', rating: 4.4, buzz: ['Dive', 'Cheap', 'Iconic'], blurb: 'West Village dive. Bistro burger and a McSorley\'s. Cash only.' },
+    { name: 'Hamburger America', addr: '51 MacDougal St', rating: 4.7, hoursText: 'OPEN UNTIL 10PM', buzz: ['Smash', 'Oklahoma', 'Onion'], blurb: 'Oklahoma onion burgers done right. Tiny dining room, big payoff.' },
+    { name: '7th Street Burger', addr: '91 7th St', rating: 4.5, hoursText: 'OPEN UNTIL 2AM', buzz: ['Cheap', 'Stoner', 'Late'], blurb: 'Double-stack smash. Open late. Eat in the park.' },
+    { name: 'Corner Bistro', addr: '331 W 4th St', rating: 4.4, hoursText: 'OPEN UNTIL 4AM', buzz: ['Dive', 'Cheap', 'Iconic'], blurb: 'West Village dive. Bistro burger and a McSorley\'s. Cash only.' },
   ],
   Beer: [
-    { name: 'Spuyten Duyvil', addr: '359 Metropolitan Ave', rating: 4.6, buzz: ['Rare', 'Garden', 'Curated'], blurb: 'Beer nerd heaven. Big backyard. No IPAs on tap today.' },
-    { name: 'Tørst', addr: '615 Manhattan Ave', rating: 4.5, buzz: ['Danish', 'Clean', 'Precise'], blurb: 'Nordic beer bar with a tight rotating list.' },
-    { name: 'Threes Brewing', addr: '333 Douglass St', rating: 4.5, buzz: ['Local', 'Backyard', 'Fresh'], blurb: 'Gowanus brewery with a backyard. Always pouring something fresh.' },
+    { name: 'Spuyten Duyvil', addr: '359 Metropolitan Ave', rating: 4.6, hoursText: 'OPEN UNTIL 12AM', buzz: ['Rare', 'Garden', 'Curated'], blurb: 'Beer nerd heaven. Big backyard. No IPAs on tap today.' },
+    { name: 'Tørst', addr: '615 Manhattan Ave', rating: 4.5, hoursText: 'OPEN UNTIL 11PM', buzz: ['Danish', 'Clean', 'Precise'], blurb: 'Nordic beer bar with a tight rotating list.' },
+    { name: 'Threes Brewing', addr: '333 Douglass St', rating: 4.5, hoursText: 'OPEN UNTIL 11PM', buzz: ['Local', 'Backyard', 'Fresh'], blurb: 'Gowanus brewery with a backyard. Always pouring something fresh.' },
   ],
   Cocktails: [
-    { name: 'Attaboy', addr: '134 Eldridge St', rating: 4.8, buzz: ['Speakeasy', "Dealer's", 'Classic'], blurb: 'Knock on the door. No menu. Tell them what you like.' },
-    { name: 'Katana Kitten', addr: '531 Hudson St', rating: 4.7, buzz: ['Japanese', 'Inventive', 'Tight'], blurb: 'Japanese highballs and hi-fi snacks. Always buzzy.' },
-    { name: 'Death & Co', addr: '433 E 6th St', rating: 4.7, buzz: ['Iconic', 'Inventive', 'Bartender'], blurb: 'East Village classic. Sit at the bar, ask for whatever you\'re feeling.' },
+    { name: 'Attaboy', addr: '134 Eldridge St', rating: 4.8, hoursText: 'OPEN UNTIL 4AM', buzz: ['Speakeasy', "Dealer's", 'Classic'], blurb: 'Knock on the door. No menu. Tell them what you like.' },
+    { name: 'Katana Kitten', addr: '531 Hudson St', rating: 4.7, hoursText: 'OPEN UNTIL 2AM', buzz: ['Japanese', 'Inventive', 'Tight'], blurb: 'Japanese highballs and hi-fi snacks. Always buzzy.' },
+    { name: 'Death & Co', addr: '433 E 6th St', rating: 4.7, hoursText: 'OPEN UNTIL 2AM', buzz: ['Iconic', 'Inventive', 'Bartender'], blurb: 'East Village classic. Sit at the bar, ask for whatever you\'re feeling.' },
   ],
   Coffee: [
-    { name: 'Sey', addr: '18 Grattan St', rating: 4.8, buzz: ['Nerdy', 'Light roast', 'Quiet'], blurb: 'Ultra-light roasts. Cash-free. Bring a book.' },
-    { name: 'Abraço', addr: '81 E 7th St', rating: 4.7, buzz: ['Cortado', 'Olive cake', 'Tiny'], blurb: 'Tiny counter. Best cortado in the EV. Get the olive cake.' },
-    { name: 'Devoción', addr: '69 Grand St', rating: 4.6, buzz: ['Colombian', 'Bright', 'Greenery'], blurb: 'Williamsburg flagship. Single-origin Colombian in a plant-filled atrium.' },
+    { name: 'Sey', addr: '18 Grattan St', rating: 4.8, hoursText: 'OPEN UNTIL 5PM', buzz: ['Nerdy', 'Light roast', 'Quiet'], blurb: 'Ultra-light roasts. Cash-free. Bring a book.' },
+    { name: 'Abraço', addr: '81 E 7th St', rating: 4.7, hoursText: 'OPEN UNTIL 7PM', buzz: ['Cortado', 'Olive cake', 'Tiny'], blurb: 'Tiny counter. Best cortado in the EV. Get the olive cake.' },
+    { name: 'Devoción', addr: '69 Grand St', rating: 4.6, hoursText: 'OPEN UNTIL 7PM', buzz: ['Colombian', 'Bright', 'Greenery'], blurb: 'Williamsburg flagship. Single-origin Colombian in a plant-filled atrium.' },
   ],
   Karaoke: [
-    { name: 'Sing Sing', addr: '9 St Marks Pl', rating: 4.4, buzz: ['Private', 'Loud', 'Cheap'], blurb: 'Private rooms, karaoke until 4am. BYO snacks.' },
-    { name: 'Insa', addr: '328 Douglass St', rating: 4.6, buzz: ['Korean', 'BBQ', 'Late'], blurb: 'Korean BBQ + karaoke rooms downstairs. Dangerous combo.' },
-    { name: 'Gagopa', addr: '28 W 32nd St', rating: 4.5, buzz: ['K-Town', 'Late', 'Cheap'], blurb: 'K-Town basement with private rooms. Snacks, sojus, screaming.' },
+    { name: 'Sing Sing', addr: '9 St Marks Pl', rating: 4.4, hoursText: 'OPEN UNTIL 4AM', buzz: ['Private', 'Loud', 'Cheap'], blurb: 'Private rooms, karaoke until 4am. BYO snacks.' },
+    { name: 'Insa', addr: '328 Douglass St', rating: 4.6, hoursText: 'OPEN UNTIL 2AM', buzz: ['Korean', 'BBQ', 'Late'], blurb: 'Korean BBQ + karaoke rooms downstairs. Dangerous combo.' },
+    { name: 'Gagopa', addr: '28 W 32nd St', rating: 4.5, hoursText: 'OPEN UNTIL 4AM', buzz: ['K-Town', 'Late', 'Cheap'], blurb: 'K-Town basement with private rooms. Snacks, sojus, screaming.' },
   ],
   Pizza: [
-    { name: "Paulie Gee's", addr: '110 Franklin St', rating: 4.9, buzz: ['Authentic', 'Classic', 'Cozy'], blurb: 'Greenpoint slice shop. Wine bar in the back. Order the Freddy Prince.' },
-    { name: "Joe's", addr: '216 Bedford Ave', rating: 4.8, buzz: ['Legendary', 'Consistent', 'Quick'], blurb: 'Offshoot of the Greenwich original. Always a line. Always worth it.' },
-    { name: 'Lucali', addr: '575 Henry St', rating: 4.9, buzz: ['Cult', 'BYOB', 'Wait'], blurb: 'Carroll Gardens institution. BYOB. The wait is the experience.' },
+    { name: "Paulie Gee's", addr: '110 Franklin St', rating: 4.9, hoursText: 'OPEN UNTIL 11PM', buzz: ['Authentic', 'Classic', 'Cozy'], blurb: 'Greenpoint slice shop. Wine bar in the back. Order the Freddy Prince.' },
+    { name: "Joe's", addr: '216 Bedford Ave', rating: 4.8, hoursText: 'OPEN UNTIL 4AM', buzz: ['Legendary', 'Consistent', 'Quick'], blurb: 'Offshoot of the Greenwich original. Always a line. Always worth it.' },
+    { name: 'Lucali', addr: '575 Henry St', rating: 4.9, hoursText: 'OPEN UNTIL 10PM', buzz: ['Cult', 'BYOB', 'Wait'], blurb: 'Carroll Gardens institution. BYOB. The wait is the experience.' },
   ],
   Sports: [
-    { name: 'Banter', addr: '132 Havemeyer St', rating: 4.6, buzz: ['Soccer', 'Aussie', 'Meat pie'], blurb: 'Aussie-run, every match on. Get the meat pie.' },
-    { name: 'The Graham', addr: '190 Graham Ave', rating: 4.4, buzz: ['Divey', 'Cheap', 'Pool'], blurb: 'Cheap pitchers, pool table, sports on the tv. No frills.' },
-    { name: 'Standings', addr: '43 E 7th St', rating: 4.5, buzz: ['Soccer', 'Tiny', 'Loud'], blurb: 'Tiny soccer bar. Every kit on the wall. Get there early for big matches.' },
+    { name: 'Banter', addr: '132 Havemeyer St', rating: 4.6, hoursText: 'OPEN UNTIL 2AM', buzz: ['Soccer', 'Aussie', 'Meat pie'], blurb: 'Aussie-run, every match on. Get the meat pie.' },
+    { name: 'The Graham', addr: '190 Graham Ave', rating: 4.4, hoursText: 'OPEN UNTIL 4AM', buzz: ['Divey', 'Cheap', 'Pool'], blurb: 'Cheap pitchers, pool table, sports on the tv. No frills.' },
+    { name: 'Standings', addr: '43 E 7th St', rating: 4.5, hoursText: 'OPEN UNTIL 1AM', buzz: ['Soccer', 'Tiny', 'Loud'], blurb: 'Tiny soccer bar. Every kit on the wall. Get there early for big matches.' },
   ],
   Sushi: [
-    { name: 'Sushi Noz', addr: '181 E 78th St', rating: 4.9, buzz: ['Splurge', 'Hinoki', 'Edomae'], blurb: 'Hinoki counter, edomae. Save up.' },
-    { name: 'Jōji', addr: '1 Vanderbilt Ave', rating: 4.7, buzz: ['Hidden', 'Omakase', 'Tight'], blurb: 'Omakase hidden inside Grand Central. 8 seats.' },
-    { name: 'Sushi Yasuda', addr: '204 E 43rd St', rating: 4.7, buzz: ['Edomae', 'Counter', 'Refined'], blurb: 'Midtown counter omakase. No tipping. Trust the chef.' },
+    { name: 'Sushi Noz', addr: '181 E 78th St', rating: 4.9, hoursText: 'OPEN UNTIL 10PM', buzz: ['Splurge', 'Hinoki', 'Edomae'], blurb: 'Hinoki counter, edomae. Save up.' },
+    { name: 'Jōji', addr: '1 Vanderbilt Ave', rating: 4.7, hoursText: 'OPEN UNTIL 11PM', buzz: ['Hidden', 'Omakase', 'Tight'], blurb: 'Omakase hidden inside Grand Central. 8 seats.' },
+    { name: 'Sushi Yasuda', addr: '204 E 43rd St', rating: 4.7, hoursText: 'OPEN UNTIL 10PM', buzz: ['Edomae', 'Counter', 'Refined'], blurb: 'Midtown counter omakase. No tipping. Trust the chef.' },
   ],
   Tacos: [
-    { name: 'Taqueria Ramirez', addr: '94 Franklin St', rating: 4.8, buzz: ['Lines', 'Worth it', 'Crispy'], blurb: 'Suadero tacos on a clown-car griddle. Cash only, cards on Venmo.' },
-    { name: 'Tacombi', addr: '255 Smith St', rating: 4.6, buzz: ['Reliable', 'Chill', 'Margs'], blurb: 'Good fallback. Get the fish taco. Order two margs.' },
-    { name: 'Los Tacos No. 1', addr: '75 9th Ave', rating: 4.7, buzz: ['Adobada', 'Quick', 'Lines'], blurb: 'Chelsea Market staple. Adobada with everything. Eat standing up.' },
+    { name: 'Taqueria Ramirez', addr: '94 Franklin St', rating: 4.8, hoursText: 'OPEN UNTIL 11PM', buzz: ['Lines', 'Worth it', 'Crispy'], blurb: 'Suadero tacos on a clown-car griddle. Cash only, cards on Venmo.' },
+    { name: 'Tacombi', addr: '255 Smith St', rating: 4.6, hoursText: 'OPEN UNTIL 11PM', buzz: ['Reliable', 'Chill', 'Margs'], blurb: 'Good fallback. Get the fish taco. Order two margs.' },
+    { name: 'Los Tacos No. 1', addr: '75 9th Ave', rating: 4.7, hoursText: 'OPEN UNTIL 11PM', buzz: ['Adobada', 'Quick', 'Lines'], blurb: 'Chelsea Market staple. Adobada with everything. Eat standing up.' },
   ],
   Random: [
-    { name: 'Lucky Luna', addr: '167 Nassau Ave', rating: 4.6, buzz: ['Taiwanese', 'Mexican', 'Wild'], blurb: 'Taiwanese-Mexican. Trust the process. Order the bao.' },
-    { name: 'Peter Luger', addr: '178 Broadway', rating: 4.5, buzz: ['Steak', 'Rude', 'Iconic'], blurb: 'Cash or debit. Get the porterhouse for two. Charm: aggressive.' },
-    { name: 'Russ & Daughters Cafe', addr: '127 Orchard St', rating: 4.7, buzz: ['Appetizing', 'Caviar', 'Bagels'], blurb: 'Sit-down version of the legendary appetizing shop. Get the LES platter.' },
+    { name: 'Lucky Luna', addr: '167 Nassau Ave', rating: 4.6, hoursText: 'OPEN UNTIL 11PM', buzz: ['Taiwanese', 'Mexican', 'Wild'], blurb: 'Taiwanese-Mexican. Trust the process. Order the bao.' },
+    { name: 'Peter Luger', addr: '178 Broadway', rating: 4.5, hoursText: 'OPEN UNTIL 9:45PM', buzz: ['Steak', 'Rude', 'Iconic'], blurb: 'Cash or debit. Get the porterhouse for two. Charm: aggressive.' },
+    { name: 'Russ & Daughters Cafe', addr: '127 Orchard St', rating: 4.7, hoursText: 'OPEN UNTIL 10PM', buzz: ['Appetizing', 'Caviar', 'Bagels'], blurb: 'Sit-down version of the legendary appetizing shop. Get the LES platter.' },
   ],
 };
+
+// Single gateway for "is this place open right now". Today: every mock is
+// flagged open. When we wire Google Places, swap this to filter on
+// place.current_opening_hours.open_now and also keep places opening within
+// the next ~10 min (mark them with `openingSoon: true` for a UI badge).
+function filterOpenNow(places) {
+  return places;
+}
 
 /* --- tiny DOM helpers --- */
 const $ = (sel) => document.querySelector(sel);
@@ -282,6 +290,10 @@ function resultCard(r) {
       el('div', { class: 'card-rating' }, `★${r.rating.toFixed(1)}`),
     ),
     el('div', { class: 'card-addr' }, '◉ ' + r.addr.toUpperCase()),
+    r.hoursText && el('div', { class: 'card-hours' },
+      el('span', { class: 'card-hours-dot' }, '●'),
+      ' ' + r.hoursText,
+    ),
     el('p', { class: 'card-blurb' }, r.blurb),
     el('div', { class: 'card-buzz' },
       ...r.buzz.map((b) => el('span', { class: 'buzz' }, b)),
@@ -381,7 +393,7 @@ async function pickCategory(label) {
   state.category = label;
   state.rerollsLeft = REROLL_BUDGET;
   state.shown = [];
-  state.pool = shuffle(MOCK_RESULTS[label] || MOCK_RESULTS.Random);
+  state.pool = shuffle(filterOpenNow(MOCK_RESULTS[label] || MOCK_RESULTS.Random));
   state.pick = null;
   go('loading');
   const minWait = 1600 + Math.random() * 600;
