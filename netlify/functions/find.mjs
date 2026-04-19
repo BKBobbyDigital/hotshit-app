@@ -138,9 +138,35 @@ function normalizePlace(place, distanceMi) {
     // Default buzz derives from type tokens; Claude will overwrite when blurb
     // endpoint is called for this pick.
     buzz: [typeGuess.replace(/_/g, ' ').toUpperCase()],
+    buzzLabel: null, // set by attachBuzz once we know the full pool context
     blurb: null,
     typeHint: typeGuess,
   };
+}
+
+// Compute a 'BUZZ' indicator per place from the full pool context. Pure
+// derivation from rating + reviewCount + within-pool ranking — no extra API
+// calls. Used by the result card to show 🔥 BUZZING / 🏆 LEGENDARY / etc.
+function attachBuzz(places) {
+  if (!places.length) return places;
+  const sortedByReviews = [...places].sort(
+    (a, b) => (b.reviewCount || 0) - (a.reviewCount || 0)
+  );
+  const busiestId = sortedByReviews[0]?.place_id;
+  // Top 25% threshold (review count of the place at the 25th percentile)
+  const top25idx = Math.max(0, Math.ceil(places.length * 0.25) - 1);
+  const top25Floor = sortedByReviews[top25idx]?.reviewCount || 0;
+
+  return places.map((p) => {
+    const rating = p.rating || 0;
+    const reviews = p.reviewCount || 0;
+    let label = null;
+    if (rating >= 4.7 && reviews >= 1000) label = '🏆 LEGENDARY';
+    else if (p.place_id === busiestId && reviews >= 100) label = '🔥 BUSIEST';
+    else if (reviews >= top25Floor && reviews >= 200) label = '🔥 BUZZING';
+    else if (rating >= 4.5 && reviews < 100 && reviews >= 25) label = '💎 SLEEPER';
+    return { ...p, buzzLabel: label };
+  });
 }
 
 // --- Cache (in-memory; survives per function instance warmness) --------------
@@ -216,14 +242,16 @@ export default async (req) => {
       .slice(0, 12)
       .map(({ raw, dist }) => normalizePlace(raw, dist));
 
+    const withBuzz = attachBuzz(scored);
+
     const result = {
       category,
       radiusMi,
       radiusTier,
       cityClass: klass,
       cityName,
-      count: scored.length,
-      pool: scored,
+      count: withBuzz.length,
+      pool: withBuzz,
     };
     cache.set(key, { t: Date.now(), data: result });
     return json(result);

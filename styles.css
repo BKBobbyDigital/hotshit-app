@@ -541,6 +541,15 @@ body {
   margin-top: 8px;
   letter-spacing: 0.08em;
 }
+.card-vibe {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(11px, 3.3cqi, 14px);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin-top: 8px;
+  color: currentColor;
+  display: inline-block;
+}
 .card-locwarn {
   appearance: none;
   display: block;
