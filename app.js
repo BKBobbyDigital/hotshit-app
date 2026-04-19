@@ -277,7 +277,7 @@ const views = {
           el('div', { class: 'prompt' }, c ? `> LOCKED IN · ${categoryEmoji(state.category)}` : `> CONSIDER · ${categoryEmoji(state.category)}`),
           el('div', { class: 'mono', style: `font-size:11px;font-weight:700;letter-spacing:0.08em;color:${c ? 'var(--accent)' : 'var(--muted)'}` }, c ? '● LOCKED' : '○ TAP TO LOCK'),
         ),
-        el('h2', { class: 'title-md', style: 'margin-top:6px' }, c ? 'GO HERE.' : "HERE'S THE 🔥💩"),
+        el('h2', { class: 'title-md', style: 'margin-top:6px' }, c ? 'GO HERE.' : "HERE\u2019S THE 🔥💩"),
         el('div', { class: 'results' }, resultCard(r, c)),
         el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:10px;flex-wrap:wrap' },
           el('div', { class: 'mono', style: 'font-size:11px;font-weight:700;letter-spacing:0.08em;opacity:0.75' }, `↺ ${state.picksLeft} MORE LEFT`),
@@ -304,9 +304,9 @@ const views = {
         el('div', { class: 'divider' }),
         el('p', { class: 'lcd-copy', style: 'margin:0' },
           unsupported
-            ? 'this browser doesn\'t share location.'
+            ? 'this browser doesn\u2019t share location.'
             : denied
-              ? 'we\'re showing sample picks until you flip it back on.'
+              ? 'we\u2019re showing sample picks until you flip it back on.'
               : 'we need your location to find shit nearby.',
         ),
         el('p', { class: 'lcd-copy', style: 'margin-top:14px;font-size:clamp(12px,3.6cqi,15px);opacity:0.85' },
@@ -364,14 +364,14 @@ function resultCard(r, committed) {
   const showLocWarning = state.usingMocks
     && (state.locationStatus === 'denied' || state.locationStatus === 'unsupported');
   const decoding = state.decoding;
-  const displayName = decoding ? state.decodeText : r.name.toUpperCase();
+  const displayName = decoding ? state.decodeText : smartQuotes(r.name.toUpperCase());
   const body = [
     el('div', { class: 'card-tag' }, committed ? 'YOUR PICK' : decoding ? 'RESOLVING' : 'SUGGESTION'),
     el('div', { class: 'card-head' },
       el('div', { class: 'card-name' }, displayName),
       el('div', { class: 'card-rating' }, `★${r.rating.toFixed(1)}`),
     ),
-    el('div', { class: 'card-addr' }, '◉ ' + r.addr.toUpperCase()),
+    el('div', { class: 'card-addr' }, '◉ ' + smartQuotes(r.addr.toUpperCase())),
     r.buzzLabel ? el('div', { class: 'card-vibe' }, r.buzzLabel) : null,
     (() => {
       const live = formatCloses(r.periods);
@@ -387,7 +387,13 @@ function resultCard(r, committed) {
       class: 'card-locwarn',
       onClick: (e) => { e.stopPropagation(); showLocationOverlay(); },
     }, '● SAMPLE PICK · LOCATION OFF · TAP TO FIX'),
-    r.blurb ? el('p', { class: 'card-blurb' }, r.blurb) : null,
+    r.blurb
+      ? el('p', { class: 'card-blurb' }, smartQuotes(r.blurb))
+      : (r.place_id ? el('div', { class: 'card-blurb-skel', 'aria-label': 'Loading description' },
+          el('span', { class: 'skel-bar' }),
+          el('span', { class: 'skel-bar' }),
+          el('span', { class: 'skel-bar' }),
+        ) : null),
     r.buzz && r.buzz.length ? el('div', { class: 'card-buzz' },
       ...r.buzz.map((b) => el('span', { class: 'buzz' }, b)),
     ) : null,
@@ -710,6 +716,20 @@ function formatCloses(periods) {
   if (rem === 0) return `CLOSES IN ${hrs}H`;
   return `CLOSES IN ${hrs}H ${rem}M`;
 }
+// Replace ASCII apostrophes / quotes with their typographically correct
+// curly Unicode equivalents. Heuristic-based — handles contractions
+// (it's), possessives (Joe's), and quoted phrases. Safe to call on any
+// string; idempotent since it only matches ASCII forms.
+function smartQuotes(s) {
+  if (typeof s !== 'string' || !s) return s;
+  return s
+    .replace(/(\w)'(\w)/g, '$1\u2019$2')      // contractions, possessives
+    .replace(/(^|\s|[\(\[])'/g, '$1\u2018')   // opening single
+    .replace(/'/g, '\u2019')                   // remaining → closing single
+    .replace(/(^|\s|[\(\[])"/g, '$1\u201C')  // opening double
+    .replace(/"/g, '\u201D');                  // remaining → closing double
+}
+
 // Format a sub-mile distance: '0.4mi' / '0.42mi' / '1.2mi'.
 function formatDistance(distanceMi) {
   if (typeof distanceMi !== 'number' || !isFinite(distanceMi)) return null;
@@ -787,7 +807,7 @@ function openMap(r) {
 async function sharePick(r) {
   if (!r) return;
   const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(`${r.name} ${r.addr}`)}`;
-  const text = `🔥💩 going to ${r.name} — ${r.addr}\n${mapsUrl}`;
+  const text = `🔥💩 going to ${smartQuotes(r.name)} — ${smartQuotes(r.addr)}\n${mapsUrl}`;
   const payload = { title: 'Hot Shit', text, url: mapsUrl };
   try {
     if (navigator.share && (!navigator.canShare || navigator.canShare(payload))) {

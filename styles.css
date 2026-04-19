@@ -78,15 +78,22 @@ body {
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
-.mono { font-family: 'JetBrains Mono', monospace; }
-.chunk { font-family: 'Archivo Black', sans-serif; letter-spacing: 0.02em; }
+.mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+.chunk { font-family: 'Archivo Black', sans-serif; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
 .hand { font-family: 'Kalam', cursive; }
 .scrawl { font-family: 'Caveat', cursive; font-weight: 700; }
 .label {
   font-family: 'Space Mono', monospace;
   text-transform: uppercase;
   letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
 }
+/* Anywhere we display numbers that change between renders — lock digit
+   widths so values update without horizontal jitter. */
+.card-rating, .card-addr, .card-hours, .card-vibe,
+.card-name, .title-xl, .title-lg, .title-md,
+.prompt, .lcd-copy, .landing-ready,
+.bar-cell, .wave-bar { font-variant-numeric: tabular-nums; }
 
 .device {
   width: 100%;
@@ -579,6 +586,27 @@ body {
   margin-top: 12px;
   line-height: 1.4;
   letter-spacing: 0.01em;
+}
+.card-blurb-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+}
+.card-blurb-skel .skel-bar {
+  display: block;
+  height: clamp(11px, 3.2cqi, 14px);
+  background: currentColor;
+  border-radius: 2px;
+  opacity: 0.1;
+  animation: skel-pulse 1.4s ease-in-out infinite;
+}
+.card-blurb-skel .skel-bar:nth-child(1) { width: 88%; }
+.card-blurb-skel .skel-bar:nth-child(2) { width: 96%; animation-delay: 0.18s; }
+.card-blurb-skel .skel-bar:nth-child(3) { width: 60%; animation-delay: 0.36s; }
+@keyframes skel-pulse {
+  0%, 100% { opacity: 0.08; }
+  50%      { opacity: 0.22; }
 }
 .card-buzz {
   display: flex;
