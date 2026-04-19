@@ -372,6 +372,7 @@ function resultCard(r, committed) {
       el('div', { class: 'card-rating' }, `★${r.rating.toFixed(1)}`),
     ),
     el('div', { class: 'card-addr' }, '◉ ' + r.addr.toUpperCase()),
+    r.buzzLabel ? el('div', { class: 'card-vibe' }, r.buzzLabel) : null,
     (() => {
       const live = formatCloses(r.periods);
       const text = live || r.hoursText;
