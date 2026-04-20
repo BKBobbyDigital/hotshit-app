@@ -88,12 +88,28 @@ function isAllowedOrigin(origin) {
   return false;
 }
 
+import { checkRateLimit, getClientIp } from './_ratelimit.mjs';
+const RL_LIMIT = 120;           // /api/blurb calls per IP per hour
+const RL_WINDOW_MS = 60 * 60e3; // 1 hour
+
 export default async (req) => {
   if (req.method !== 'POST') {
     return json({ error: 'POST only' }, 405);
   }
   if (!isAllowedOrigin(req.headers.get('origin'))) {
     return json({ error: 'forbidden' }, 403);
+  }
+  const rl = await checkRateLimit({
+    ip: getClientIp(req),
+    endpoint: 'blurb',
+    limit: RL_LIMIT,
+    windowMs: RL_WINDOW_MS,
+  });
+  if (!rl.allowed) {
+    return new Response(
+      JSON.stringify({ error: 'rate_limit', retryAfter: rl.retryAfter }),
+      { status: 429, headers: { 'content-type': 'application/json', 'retry-after': String(rl.retryAfter) } },
+    );
   }
   let typeHint;
   try {
