@@ -78,9 +78,22 @@ async function fetchPlaceDetails(place_id) {
   }
 }
 
+// Reject requests that didn't originate from our own UI. Abuse speed bump
+// — Origin can be forged from non-browser clients, but browsers enforce it.
+function isAllowedOrigin(origin) {
+  if (!origin) return false;
+  if (origin === 'https://hot-shit.netlify.app') return true;
+  if (/^https:\/\/[a-z0-9-]+--hot-shit\.netlify\.app$/.test(origin)) return true;
+  if (origin === 'http://localhost:8888' || origin === 'http://localhost:3000') return true;
+  return false;
+}
+
 export default async (req) => {
   if (req.method !== 'POST') {
     return json({ error: 'POST only' }, 405);
+  }
+  if (!isAllowedOrigin(req.headers.get('origin'))) {
+    return json({ error: 'forbidden' }, 403);
   }
   let typeHint;
   try {

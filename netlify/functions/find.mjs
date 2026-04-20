@@ -181,11 +181,27 @@ function cacheKey(lat, lon, category, radiusTier) {
   return `${latB}|${lonB}|${category}|${radiusTier}`;
 }
 
+// --- Origin guard ------------------------------------------------------------
+
+// Reject requests that didn't originate from our own UI. Not a security
+// boundary (Origin can be forged from a non-browser client) — an abuse
+// speed bump so casual scripts can't burn our Google Cloud quota.
+function isAllowedOrigin(origin) {
+  if (!origin) return false;
+  if (origin === 'https://hot-shit.netlify.app') return true;
+  if (/^https:\/\/[a-z0-9-]+--hot-shit\.netlify\.app$/.test(origin)) return true;
+  if (origin === 'http://localhost:8888' || origin === 'http://localhost:3000') return true;
+  return false;
+}
+
 // --- Handler -----------------------------------------------------------------
 
 export default async (req) => {
   if (req.method !== 'POST') {
     return json({ error: 'POST only' }, 405);
+  }
+  if (!isAllowedOrigin(req.headers.get('origin'))) {
+    return json({ error: 'forbidden' }, 403);
   }
   try {
     if (!process.env.GOOGLE_PLACES_KEY) {
