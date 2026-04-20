@@ -8,6 +8,14 @@
 [[headers]]
   for = "/*"
   [headers.values]
+    # Core protection
     X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "geolocation=(self)"
+    # Force HTTPS on this host + all subdomains for 1yr
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    # Lock down what the page can load / connect to. 'unsafe-inline' on
+    # style-src is intentional — the app uses React-style inline style
+    # attributes for per-element theming. Scripts are same-origin only.
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
