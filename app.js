@@ -766,10 +766,20 @@ async function pickCategory(label, opts = {}) {
     await ensureLocation();
   }
 
-  // Fallback to mocks if the live API gave us nothing (denied permission,
-  // rate limited, offline, empty result). Mocks are already NYC-flavored so
-  // they keep the demo alive anywhere in the world.
+  // Live API came back empty? Two very different cases:
+  //   1. We never had coords (denied / unsupported / no API key configured)
+  //      → fall back to NYC mocks so the app still demos somewhere; the
+  //        LOC OFF badge + 'SAMPLE PICK' card warning make this honest.
+  //   2. We had real coords but Google + our filters returned 0 places
+  //      → route to the empty view with WIDEN+, NOT to NYC mocks.
+  //        Otherwise a user in Denver sees Brooklyn pizza with no warning.
   if (!pool.length) {
+    if (state.coords && USE_LIVE_API) {
+      await loaderPromise;
+      if (state.view !== 'loading') return;
+      go('empty');
+      return;
+    }
     const key = label === 'random'
       ? Object.keys(MOCK_RESULTS)[Math.floor(Math.random() * Object.keys(MOCK_RESULTS).length)]
       : Object.keys(MOCK_RESULTS).find((k) => k.toLowerCase() === label.toLowerCase());
