@@ -326,8 +326,23 @@ const views = {
   },
 
   empty: {
-    mode: () => '🔥💩 · NO SIGNAL',
+    mode: () => state.emptyReason === 'service' ? '🔥💩 · OFFLINE' : '🔥💩 · NO SIGNAL',
     screen: () => {
+      if (state.emptyReason === 'service') {
+        return el('div', { class: 'screen' },
+          el('div', { class: 'prompt' }, '> ', el('span', { class: 'accent' }, 'SERVICE HICCUP')),
+          el('h1', { class: 'title-xl', style: 'margin-top:14px' }, 'WE’RE'),
+          el('h1', { class: 'title-xl' }, 'COOKING.'),
+          el('p', { class: 'lcd-copy', style: 'margin-top:14px' },
+            'something’s slow on our end.', el('br'),
+            'give it a beat and retry.',
+          ),
+          el('div', { class: 'spacer' }),
+          el('div', { class: 'empty' },
+            el('div', { class: 'glyph' }, '⚠'),
+          ),
+        );
+      }
       const canWiden = state.radiusTier < MAX_RADIUS_TIER;
       return el('div', { class: 'screen' },
         el('div', { class: 'prompt' }, '> ', el('span', { class: 'accent' }, 'ERR: NO 🔥💩 FOUND')),
@@ -346,16 +361,27 @@ const views = {
         ),
       );
     },
-    keys: () => [
-      { n: 1, label: '◀ BACK', onClick: resetCategory },
-      {
-        n: 2,
-        label: state.radiusTier < MAX_RADIUS_TIER ? 'WIDEN +' : 'MAX REACHED',
-        primary: true,
-        disabled: state.radiusTier >= MAX_RADIUS_TIER,
-        onClick: widenRadius,
-      },
-    ],
+    keys: () => {
+      if (state.emptyReason === 'service') {
+        return [
+          { label: '◀ BACK', onClick: resetCategory },
+          {
+            label: '↻ RETRY',
+            primary: true,
+            onClick: () => pickCategory(state.category || 'random', { radiusTier: state.radiusTier }),
+          },
+        ];
+      }
+      return [
+        { label: '◀ BACK', onClick: resetCategory },
+        {
+          label: state.radiusTier < MAX_RADIUS_TIER ? 'WIDEN +' : 'MAX REACHED',
+          primary: true,
+          disabled: state.radiusTier >= MAX_RADIUS_TIER,
+          onClick: widenRadius,
+        },
+      ];
+    },
   },
 };
 
@@ -615,13 +641,18 @@ async function askLocationAgain() {
   state.coords = null;
   await refreshLocationStatus();
   const coords = await ensureLocation();
-  if (coords) {
-    // Granted! return to where they came from.
-    go(state.locationReturnTo || 'landing');
-  } else {
+  if (!coords) {
     // Still off — re-render the location view so the status text updates.
     render();
+    return;
   }
+  // Granted! If the user landed here because pickCategory couldn't get
+  // coords, auto-retry that category instead of forcing them to re-tap.
+  if (state.locationReturnTo === 'categories' && state.category) {
+    pickCategory(state.category, { radiusTier: state.radiusTier || 0 });
+    return;
+  }
+  go(state.locationReturnTo || 'landing');
 }
 
 function showLocationOverlay() {
@@ -750,6 +781,7 @@ async function pickCategory(label, opts = {}) {
   state.usingMocks = false;
   state.decoding = false;
   state.decodeText = '';
+  state.emptyReason = null;
   go('loading');
 
   const minWait = 1600 + Math.random() * 600;
@@ -758,28 +790,21 @@ async function pickCategory(label, opts = {}) {
   let pool = [];
   if (USE_LIVE_API) {
     const coords = await ensureLocation();
-    if (coords) {
-      const data = await fetchPool(coords.lat, coords.lon, label, radiusTier);
-      pool = Array.isArray(data.pool) ? data.pool : [];
-    }
-  } else {
-    await ensureLocation();
-  }
-
-  // Live API came back empty? Two very different cases:
-  //   1. We never had coords (denied / unsupported / no API key configured)
-  //      → fall back to NYC mocks so the app still demos somewhere; the
-  //        LOC OFF badge + 'SAMPLE PICK' card warning make this honest.
-  //   2. We had real coords but Google + our filters returned 0 places
-  //      → route to the empty view with WIDEN+, NOT to NYC mocks.
-  //        Otherwise a user in Denver sees Brooklyn pizza with no warning.
-  if (!pool.length) {
-    if (state.coords && USE_LIVE_API) {
+    if (!coords) {
+      // No location available (denied / unsupported / error). Don't pretend
+      // with NYC mocks — route to the existing location overlay so the user
+      // can either fix permissions or back out.
       await loaderPromise;
       if (state.view !== 'loading') return;
-      go('empty');
+      state.locationReturnTo = 'categories';
+      go('location');
       return;
     }
+    const data = await fetchPool(coords.lat, coords.lon, label, radiusTier);
+    pool = Array.isArray(data.pool) ? data.pool : [];
+    if (data.error) state.emptyReason = 'service';
+  } else {
+    // Explicit ?mock=1 testing mode only — NYC mocks are deliberate here.
     const key = label === 'random'
       ? Object.keys(MOCK_RESULTS)[Math.floor(Math.random() * Object.keys(MOCK_RESULTS).length)]
       : Object.keys(MOCK_RESULTS).find((k) => k.toLowerCase() === label.toLowerCase());
@@ -787,10 +812,15 @@ async function pickCategory(label, opts = {}) {
     state.usingMocks = true;
   }
 
-  state.pool = pool;
-
   await loaderPromise;
   if (state.view !== 'loading') return;
+
+  if (!pool.length) {
+    if (!state.emptyReason) state.emptyReason = 'no_results';
+    go('empty');
+    return;
+  }
+  state.pool = pool;
 
   const next = drawFromPool();
   if (!next) {
