@@ -278,6 +278,18 @@ export default async (req) => {
 
     const withBuzz = attachBuzz(scored);
 
+    // Diagnostic line for empty-result debugging (e.g. user in a sparse area).
+    // 'raw' = what Google returned for the area, 'filtered' = what cleared
+    // our quality floor. If raw is non-zero but filtered is zero, our
+    // thresholds are too strict for this area; if raw is zero, Google has
+    // no matching places near the user.
+    if (!withBuzz.length) {
+      console.log('[find] empty pool', JSON.stringify({
+        category, radiusMi, radiusTier, klass, cityName,
+        raw: places.length, filtered: filtered.length,
+      }));
+    }
+
     const result = {
       category,
       radiusMi,
