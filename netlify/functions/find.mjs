@@ -199,8 +199,73 @@ function isAllowedOrigin(origin) {
 // --- Rate limit config -------------------------------------------------------
 
 import { checkRateLimit, getClientIp } from './_ratelimit.mjs';
+import { getStore } from '@netlify/blobs';
 const RL_LIMIT = 60;            // /api/find calls per IP per hour
 const RL_WINDOW_MS = 60 * 60e3; // 1 hour
+
+// --- NYC borough resolution --------------------------------------------------
+
+// Reverse-geocode user's lat/lon to detect which NYC borough (if any). Result
+// is cached forever in Netlify Blobs keyed by ~1km lat/lon bucket. NYC users
+// hot-cache after a single lookup; non-NYC users cache a 'null' result so we
+// don't keep paying $5/1000 for the same negative answer.
+async function lookupBorough(lat, lon) {
+  if (!process.env.GOOGLE_PLACES_KEY) return null;
+  const bucket = (n) => Math.round(n * 100) / 100; // ~1km
+  const key = `geo:${bucket(lat)}:${bucket(lon)}`;
+  let store;
+  try { store = getStore({ name: 'hotshit-geo' }); } catch { return null; }
+
+  try {
+    const cached = await store.get(key, { type: 'json' });
+    if (cached !== null && cached !== undefined) return cached.borough || null;
+  } catch { /* fall through */ }
+
+  try {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${process.env.GOOGLE_PLACES_KEY}`;
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data.status !== 'OK') {
+      await store.setJSON(key, { borough: null }).catch(() => {});
+      return null;
+    }
+    const components = data.results?.[0]?.address_components || [];
+    const borough = extractBoroughFromComponents(components);
+    await store.setJSON(key, { borough }).catch(() => {});
+    return borough;
+  } catch (e) {
+    console.error('[find] reverseGeocode failed:', e.message);
+    return null;
+  }
+}
+
+const NYC_BOROUGHS = new Set(['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island']);
+
+function extractBoroughFromComponents(components) {
+  for (const c of components) {
+    const name = c.long_name === 'The Bronx' ? 'Bronx' : c.long_name;
+    if (!NYC_BOROUGHS.has(name)) continue;
+    if (c.types?.includes('sublocality_level_1') || c.types?.includes('sublocality') || c.types?.includes('political')) {
+      return name;
+    }
+  }
+  return null;
+}
+
+// Determine which borough a Google place is in by parsing its formatted
+// address. Manhattan, Brooklyn, Bronx, and Staten Island have clean tokens.
+// Queens addresses use neighborhood names (Astoria, LIC, Flushing...), so
+// 'Queens' returns null and we don't filter those — that's the price of
+// not paying for a reverse geocode on every candidate.
+function placeBorough(formattedAddress) {
+  if (!formattedAddress) return null;
+  if (/, Brooklyn, NY /.test(formattedAddress))      return 'Brooklyn';
+  if (/, Bronx, NY /.test(formattedAddress))         return 'Bronx';
+  if (/, Staten Island, NY /.test(formattedAddress)) return 'Staten Island';
+  if (/, New York, NY /.test(formattedAddress))      return 'Manhattan';
+  return null;
+}
 
 // --- Handler -----------------------------------------------------------------
 
@@ -255,6 +320,12 @@ export default async (req) => {
     const multipliers = [1, 2, 4, 8];
     const radiusMi = defaultRadiusMi * multipliers[radiusTier];
 
+    // NYC borough lookup runs in parallel with the place search to hide
+    // its latency. Resolves to null outside NYC (also cached as null).
+    const boroughPromise = klass === 'dense' && cityName === 'NYC'
+      ? lookupBorough(lat, lon)
+      : Promise.resolve(null);
+
     // First pass: strict quality floor
     let places = await searchText({ query, lat, lon, radiusMi, minRating: 4.2 });
     let filtered = places.filter(
@@ -267,6 +338,22 @@ export default async (req) => {
       filtered = places.filter(
         (p) => p.businessStatus === 'OPERATIONAL' && (p.userRatingCount || 0) >= 25
       );
+    }
+
+    // Borough filter — NYC only. If the user is in Manhattan/Brooklyn/Bronx
+    // /Staten Island, drop candidates whose formatted address resolves to
+    // a different borough. Queens we leave alone (addresses use neighborhood
+    // names like 'Long Island City, NY' that don't say Queens). The river /
+    // bridge crossing problem (Brooklyn user → 0.4mi crow-flies pick in
+    // Manhattan) is what this fixes.
+    const userBorough = await boroughPromise;
+    if (userBorough && userBorough !== 'Queens') {
+      filtered = filtered.filter((p) => {
+        const b = placeBorough(p.formattedAddress);
+        // Keep places whose borough matches OR can't be parsed (defensive —
+        // unknown is preferable to over-filtering when the address is weird).
+        return b === null || b === userBorough;
+      });
     }
 
     const scored = filtered
@@ -298,6 +385,7 @@ export default async (req) => {
       radiusTier,
       cityClass: klass,
       cityName,
+      borough: userBorough || null,
       count: withBuzz.length,
       pool: withBuzz,
     };
