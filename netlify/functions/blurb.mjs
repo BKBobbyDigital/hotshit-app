@@ -82,6 +82,8 @@ async function fetchPlaceDetails(place_id) {
 // — Origin can be forged from non-browser clients, but browsers enforce it.
 function isAllowedOrigin(origin) {
   if (!origin) return false;
+  if (origin === 'https://hotshit.xyz') return true;
+  if (origin === 'https://www.hotshit.xyz') return true;
   if (origin === 'https://hot-shit.netlify.app') return true;
   if (/^https:\/\/[a-z0-9-]+--hot-shit\.netlify\.app$/.test(origin)) return true;
   if (origin === 'http://localhost:8888' || origin === 'http://localhost:3000') return true;
