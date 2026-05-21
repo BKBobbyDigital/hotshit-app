@@ -1,4 +1,4 @@
-const CACHE = 'hotshit-v5';
+const CACHE = 'hotshit-v6';
 const PRECACHE = [
   '/',
   '/index.html',
@@ -6,6 +6,7 @@ const PRECACHE = [
   '/app.js',
   '/manifest.webmanifest',
   '/icon.svg',
+  '/og-image.svg',
 ];
 
 self.addEventListener('install', (e) => {
