@@ -33,8 +33,6 @@ function cityClass(lat, lon) {
 }
 
 // Map our 10 categories to Google-friendly text queries.
-// Text Search handles natural language well; no need to map to includedTypes
-// strictly (karaoke isn't a first-class Places type yet).
 const CATEGORY_QUERIES = {
   burgers:   'burger restaurant',
   beer:      'beer bar',
@@ -46,6 +44,34 @@ const CATEGORY_QUERIES = {
   sushi:     'sushi',
   tacos:     'tacos',
 };
+// Primary Google place type per category. When set, Places API is asked
+// with includedType + strictTypeFiltering=true so results MUST have this
+// type (kills grocery-stores-for-sushi false positives). Categories with
+// null fall back to text-only matching + our post-filter reject list.
+const CATEGORY_STRICT_TYPES = {
+  burgers:   'hamburger_restaurant',
+  coffee:    'coffee_shop',
+  pizza:     'pizza_restaurant',
+  sports:    'sports_bar',
+  sushi:     'sushi_restaurant',
+  tacos:     'mexican_restaurant',
+  beer:      null,  // too broad — bar / brewery / pub all fit; text query does the work
+  cocktails: null,
+  karaoke:   null,  // real karaoke bars often typed as 'bar' or 'night_club'
+};
+// Universal reject list — never surface these types as 'let's go out here'.
+const REJECT_TYPES = new Set([
+  'grocery_or_supermarket',
+  'convenience_store',
+  'gas_station',
+  'department_store',
+  'drug_store',
+  'pharmacy',
+  'hardware_store',
+  'food_court', // often mall food courts
+  'atm',
+  'lodging',
+]);
 const CATEGORY_LIST = Object.keys(CATEGORY_QUERIES);
 
 // --- Scoring -----------------------------------------------------------------
@@ -76,7 +102,7 @@ function haversineMi(lat1, lon1, lat2, lon2) {
 
 // --- Google Places -----------------------------------------------------------
 
-async function searchText({ query, lat, lon, radiusMi, minRating }) {
+async function searchText({ query, lat, lon, radiusMi, minRating, includedType }) {
   const url = 'https://places.googleapis.com/v1/places:searchText';
   const body = {
     textQuery: query,
@@ -91,6 +117,10 @@ async function searchText({ query, lat, lon, radiusMi, minRating }) {
     rankPreference: 'RELEVANCE',
     pageSize: 20,
   };
+  if (includedType) {
+    body.includedType = includedType;
+    body.strictTypeFiltering = true;
+  }
   const resp = await fetch(url, {
     method: 'POST',
     headers: {
@@ -326,19 +356,42 @@ export default async (req) => {
       ? lookupBorough(lat, lon)
       : Promise.resolve(null);
 
+    // Ask Google to strictly filter by primary type when we have a good
+    // one (kills 'grocery store' for sushi). Categories without a strict
+    // type (karaoke, beer, cocktails) fall back to text search + our
+    // universal reject-type post-filter below.
+    const includedType = CATEGORY_STRICT_TYPES[category] || null;
+
     // First pass: strict quality floor
-    let places = await searchText({ query, lat, lon, radiusMi, minRating: 4.2 });
+    let places = await searchText({ query, lat, lon, radiusMi, minRating: 4.2, includedType });
     let filtered = places.filter(
       (p) => p.businessStatus === 'OPERATIONAL' && (p.userRatingCount || 0) >= 75
     );
 
     // Relax once if too sparse
     if (filtered.length < 5) {
-      places = await searchText({ query, lat, lon, radiusMi, minRating: 4.0 });
+      places = await searchText({ query, lat, lon, radiusMi, minRating: 4.0, includedType });
       filtered = places.filter(
         (p) => p.businessStatus === 'OPERATIONAL' && (p.userRatingCount || 0) >= 25
       );
     }
+
+    // Reject-type post-filter: no matter what Google returned, drop
+    // anything whose types intersect our 'never take friends here' list
+    // (groceries, gas stations, drug stores, hotels, etc.).
+    filtered = filtered.filter((p) => {
+      const types = p.types || [];
+      return !types.some((t) => REJECT_TYPES.has(t));
+    });
+
+    // Distance hard-cap: locationBias is soft — Google can (and does)
+    // return results outside the circle when the local area is sparse.
+    // The 'karaoke 2 hours away' bug. Cap at 2× current radius.
+    const distCapMi = radiusMi * 2;
+    filtered = filtered.filter((p) => {
+      const d = haversineMi(lat, lon, p.location.latitude, p.location.longitude);
+      return d <= distCapMi;
+    });
 
     // Borough filter — NYC only. If the user is in Manhattan/Brooklyn/Bronx
     // /Staten Island, drop candidates whose formatted address resolves to
