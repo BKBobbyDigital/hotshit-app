@@ -842,6 +842,8 @@ async function pickCategory(label, opts = {}) {
     const data = await fetchPool(coords.lat, coords.lon, label, radiusTier);
     pool = Array.isArray(data.pool) ? data.pool : [];
     if (data.error) state.emptyReason = 'service';
+    if (Number.isFinite(data.radiusTier)) state.radiusTier = Math.max(state.radiusTier, data.radiusTier);
+    state.lastTrail = data.trail || null;
   } else {
     // Explicit ?mock=1 testing mode only — NYC mocks are deliberate here.
     const key = label === 'random'
@@ -1054,12 +1056,14 @@ document.addEventListener('DOMContentLoaded', () => {
           + ` getWinSeg:${'getWindowSegments' in window ? 'Y' : 'n'}`,
         `hSeg2:${mm('(horizontal-viewport-segments: 2)')} vSeg2:${mm('(vertical-viewport-segments: 2)')}`
           + ` span:${mm('(screen-spanning: single-fold-vertical)')}${mm('(screen-spanning: single-fold-horizontal)')}`,
+        state.lastTrail ? 'find: ' + state.lastTrail.map((t) => `t${t.tier}[${t.raw}>${t.quality}>${t.notRejected}>${t.withinDistance}>${t.inBorough}]`).join(' ') : 'find: -',
         `standalone:${mm('(display-mode: standalone)')}`
           + ` ori:${screen.orientation ? screen.orientation.type : 'n/a'}`
           + ` posture:${mm('(device-posture: folded)')}${mm('(device-posture: continuous)')}`,
       ].join('\n');
     };
     upd();
+    setInterval(upd, 1000);
     window.addEventListener('resize', upd);
     if (window.visualViewport) window.visualViewport.addEventListener('resize', upd);
     if (screen.orientation) screen.orientation.addEventListener('change', upd);

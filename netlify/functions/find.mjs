@@ -350,7 +350,6 @@ export default async (req) => {
 
     const { klass, defaultRadiusMi, name: cityName } = cityClass(lat, lon);
     const multipliers = [1, 2, 4, 8];
-    const radiusMi = defaultRadiusMi * multipliers[radiusTier];
 
     // NYC borough lookup runs in parallel with the place search to hide
     // its latency. Resolves to null outside NYC (also cached as null).
@@ -363,53 +362,66 @@ export default async (req) => {
     // type (karaoke, beer, cocktails) fall back to text search + our
     // universal reject-type post-filter below.
     const includedType = CATEGORY_STRICT_TYPES[category] || null;
-
-    // First pass: strict quality floor
-    let places = await searchText({ query, lat, lon, radiusMi, minRating: 4.2, includedType });
-    let filtered = places.filter(
-      (p) => p.businessStatus === 'OPERATIONAL' && (p.userRatingCount || 0) >= 75
-    );
-
-    // Relax once if too sparse
-    if (filtered.length < 5) {
-      places = await searchText({ query, lat, lon, radiusMi, minRating: 4.0, includedType });
-      filtered = places.filter(
-        (p) => p.businessStatus === 'OPERATIONAL' && (p.userRatingCount || 0) >= 25
-      );
-    }
-
-    // Reject-type post-filter: no matter what Google returned, drop
-    // anything whose types intersect our 'never take friends here' list
-    // (groceries, gas stations, drug stores, hotels, etc.).
-    filtered = filtered.filter((p) => {
-      const types = p.types || [];
-      return !types.some((t) => REJECT_TYPES.has(t));
-    });
-
-    // Distance hard-cap: locationBias is soft — Google can (and does)
-    // return results outside the circle when the local area is sparse.
-    // The 'karaoke 2 hours away' bug. Cap at 2× current radius.
-    const distCapMi = radiusMi * 2;
-    filtered = filtered.filter((p) => {
-      const d = haversineMi(lat, lon, p.location.latitude, p.location.longitude);
-      return d <= distCapMi;
-    });
-
-    // Borough filter — NYC only. If the user is in Manhattan/Brooklyn/Bronx
-    // /Staten Island, drop candidates whose formatted address resolves to
-    // a different borough. Queens we leave alone (addresses use neighborhood
-    // names like 'Long Island City, NY' that don't say Queens). The river /
-    // bridge crossing problem (Brooklyn user → 0.4mi crow-flies pick in
-    // Manhattan) is what this fixes.
     const userBorough = await boroughPromise;
-    if (userBorough && userBorough !== 'Queens') {
-      filtered = filtered.filter((p) => {
-        const b = placeBorough(p.formattedAddress);
-        // Keep places whose borough matches OR can't be parsed (defensive —
-        // unknown is preferable to over-filtering when the address is weird).
-        return b === null || b === userBorough;
-      });
+
+    // One full search+filter pass at a given radius tier.
+    async function runTier(tier) {
+      const radiusMi = defaultRadiusMi * multipliers[tier];
+      const stages = {};
+
+      // First pass: strict quality floor
+      let places = await searchText({ query, lat, lon, radiusMi, minRating: 4.2, includedType });
+      stages.raw = places.length;
+      let filtered = places.filter(
+        (p) => p.businessStatus === 'OPERATIONAL' && (p.userRatingCount || 0) >= 75
+      );
+
+      // Relax once if too sparse
+      if (filtered.length < 5) {
+        places = await searchText({ query, lat, lon, radiusMi, minRating: 4.0, includedType });
+        stages.rawRelaxed = places.length;
+        filtered = places.filter(
+          (p) => p.businessStatus === 'OPERATIONAL' && (p.userRatingCount || 0) >= 25
+        );
+      }
+      stages.quality = filtered.length;
+
+      // Reject-type post-filter (groceries, gas stations, hotels, etc.)
+      filtered = filtered.filter((p) => !(p.types || []).some((t) => REJECT_TYPES.has(t)));
+      stages.notRejected = filtered.length;
+
+      // Distance hard-cap: locationBias is soft. Cap at 2x current radius.
+      const distCapMi = radiusMi * 2;
+      filtered = filtered.filter((p) => (
+        haversineMi(lat, lon, p.location.latitude, p.location.longitude) <= distCapMi
+      ));
+      stages.withinDistance = filtered.length;
+
+      // NYC borough filter (Queens left alone; unparseable kept).
+      if (userBorough && userBorough !== 'Queens') {
+        filtered = filtered.filter((p) => {
+          const b = placeBorough(p.formattedAddress);
+          return b === null || b === userBorough;
+        });
+      }
+      stages.inBorough = filtered.length;
+      return { filtered, radiusMi, stages };
     }
+
+    // Auto-widen: if a tier yields fewer than MIN_POOL places, step up
+    // (at most AUTO_WIDEN_MAX tiers) before giving up. Keeps the default
+    // hyper-local but avoids dead-end 'nothing within range' screens.
+    const MIN_POOL = 3;
+    const AUTO_WIDEN_MAX = 2;
+    let effectiveTier = radiusTier;
+    let run = await runTier(effectiveTier);
+    const trail = [{ tier: effectiveTier, ...run.stages }];
+    while (run.filtered.length < MIN_POOL && effectiveTier < Math.min(3, radiusTier + AUTO_WIDEN_MAX)) {
+      effectiveTier += 1;
+      run = await runTier(effectiveTier);
+      trail.push({ tier: effectiveTier, ...run.stages });
+    }
+    const { filtered, radiusMi } = run;
 
     const scored = filtered
       .map((p) => {
@@ -437,7 +449,9 @@ export default async (req) => {
     const result = {
       category,
       radiusMi,
-      radiusTier,
+      radiusTier: effectiveTier,
+      requestedTier: radiusTier,
+      trail,
       cityClass: klass,
       cityName,
       borough: userBorough || null,
