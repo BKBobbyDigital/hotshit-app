@@ -29,7 +29,7 @@ function cityClass(lat, lon) {
       return { klass: 'dense', defaultRadiusMi: 0.25, name: bb.name };
     }
   }
-  return { klass: 'urban', defaultRadiusMi: 0.6, name: null };
+  return { klass: 'urban', defaultRadiusMi: 1.0, name: null };
 }
 
 // Map our 10 categories to Google-friendly text queries.
@@ -442,7 +442,7 @@ export default async (req) => {
     if (!withBuzz.length) {
       console.log('[find] empty pool', JSON.stringify({
         category, radiusMi, radiusTier, klass, cityName,
-        raw: places.length, filtered: filtered.length,
+        trail,
       }));
     }
 
