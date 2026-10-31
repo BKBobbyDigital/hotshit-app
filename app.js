@@ -999,6 +999,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  if (/\bdebug=1\b/.test(window.location.search)) {
+    const dbg = document.createElement('div');
+    dbg.className = 'dbg';
+    const upd = () => {
+      dbg.textContent = `${window.innerWidth}x${window.innerHeight} @${window.devicePixelRatio}x `
+        + `${window.matchMedia('(orientation: landscape)').matches ? 'land' : 'port'} `
+        + `${window.matchMedia('(pointer: coarse)').matches ? 'touch' : 'fine'}`;
+    };
+    upd();
+    window.addEventListener('resize', upd);
+    document.body.appendChild(dbg);
+  }
+
   const deepLinkCat = categoryFromUrl();
   if (deepLinkCat) {
     pickCategory(deepLinkCat);
