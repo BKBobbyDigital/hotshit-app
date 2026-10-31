@@ -812,7 +812,7 @@ body {
   position: fixed; left: 8px; bottom: calc(8px + env(safe-area-inset-bottom));
   z-index: 300; font: 700 11px/1.3 'JetBrains Mono', monospace;
   background: var(--ink); color: var(--lcd); padding: 4px 8px; border-radius: 3px;
-  pointer-events: none; opacity: 0.85;
+  pointer-events: none; opacity: 0.85; white-space: pre;
 }
 
 /* Short viewports (e.g. iPhone SE 667px tall in landscape-ish space) */

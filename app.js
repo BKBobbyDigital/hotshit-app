@@ -1042,12 +1042,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const dbg = document.createElement('div');
     dbg.className = 'dbg';
     const upd = () => {
-      dbg.textContent = `${window.innerWidth}x${window.innerHeight} @${window.devicePixelRatio}x `
-        + `${window.matchMedia('(orientation: landscape)').matches ? 'land' : 'port'} `
-        + `${window.matchMedia('(pointer: coarse)').matches ? 'touch' : 'fine'}`;
+      const mm = (q) => { try { return window.matchMedia(q).matches ? 'Y' : 'n'; } catch { return '?'; } };
+      const vv = window.visualViewport;
+      dbg.textContent = [
+        `${window.innerWidth}x${window.innerHeight} @${window.devicePixelRatio}x`
+          + ` ${mm('(orientation: landscape)') === 'Y' ? 'land' : 'port'}`
+          + ` ${mm('(pointer: coarse)') === 'Y' ? 'touch' : 'fine'}`,
+        `screen ${screen.width}x${screen.height} avail ${screen.availWidth}x${screen.availHeight}`,
+        `vv ${vv ? Math.round(vv.width) + 'x' + Math.round(vv.height) : 'none'}`
+          + ` segs:${vv && vv.segments ? vv.segments.length : 'n/a'}`
+          + ` getWinSeg:${'getWindowSegments' in window ? 'Y' : 'n'}`,
+        `hSeg2:${mm('(horizontal-viewport-segments: 2)')} vSeg2:${mm('(vertical-viewport-segments: 2)')}`
+          + ` span:${mm('(screen-spanning: single-fold-vertical)')}${mm('(screen-spanning: single-fold-horizontal)')}`,
+        `standalone:${mm('(display-mode: standalone)')}`
+          + ` ori:${screen.orientation ? screen.orientation.type : 'n/a'}`
+          + ` posture:${mm('(device-posture: folded)')}${mm('(device-posture: continuous)')}`,
+      ].join('\n');
     };
     upd();
     window.addEventListener('resize', upd);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', upd);
+    if (screen.orientation) screen.orientation.addEventListener('change', upd);
     document.body.appendChild(dbg);
   }
 
