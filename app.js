@@ -385,6 +385,40 @@ const views = {
   },
 };
 
+/* --- radar: direction + distance to the pick (north-up, no map API) --- */
+function bearingDeg(lat1, lon1, lat2, lon2) {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLon = toRad(lon2 - lon1);
+  const y = Math.sin(dLon) * Math.cos(toRad(lat2));
+  const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2))
+          - Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+function cardinal(deg) {
+  return ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(deg / 45) % 8];
+}
+function radarEl(r) {
+  if (!state.coords || typeof r.lat !== 'number' || typeof r.lon !== 'number'
+      || typeof r.distanceMi !== 'number') return null;
+  const deg = bearingDeg(state.coords.lat, state.coords.lon, r.lat, r.lon);
+  const ring = Math.max(0.25, Math.ceil(r.distanceMi * 4) / 4); // outer ring, mi
+  const frac = Math.min(0.92, r.distanceMi / ring);
+  const c = 60, R = 52;
+  const px = (c + R * frac * Math.sin(deg * Math.PI / 180)).toFixed(1);
+  const py = (c - R * frac * Math.cos(deg * Math.PI / 180)).toFixed(1);
+  const svg = `<svg viewBox="0 0 120 120" role="img" aria-label="${Math.round(deg)} degrees ${cardinal(deg)}, ${r.distanceMi} miles">`
+    + `<circle cx="60" cy="60" r="52" class="rd-ring"/><circle cx="60" cy="60" r="26" class="rd-ring"/>`
+    + `<line x1="60" y1="8" x2="60" y2="112" class="rd-axis"/><line x1="8" y1="60" x2="112" y2="60" class="rd-axis"/>`
+    + `<g class="rd-sweep"><line x1="60" y1="60" x2="60" y2="8" class="rd-beam"/></g>`
+    + `<circle cx="60" cy="60" r="2.5" class="rd-me"/>`
+    + `<circle cx="${px}" cy="${py}" r="5" class="rd-dot"/>`
+    + `<text x="60" y="7" class="rd-n" text-anchor="middle">N</text></svg>`;
+  return el('div', { class: 'card-radar', 'aria-hidden': 'false' },
+    el('div', { class: 'radar-svg', html: svg }),
+    el('div', { class: 'radar-label' }, `${cardinal(deg)} ${Math.round(deg)}°`),
+  );
+}
+
 function resultCard(r, committed) {
   if (!r) return el('div');
   const showLocWarning = state.usingMocks
@@ -397,17 +431,22 @@ function resultCard(r, committed) {
       el('div', { class: 'card-name' }, displayName),
       el('div', { class: 'card-rating' }, `★${r.rating.toFixed(1)}`),
     ),
-    el('div', { class: 'card-addr' }, '◉ ' + smartQuotes(r.addr.toUpperCase())),
-    r.buzzLabel ? el('div', { class: 'card-vibe' }, r.buzzLabel) : null,
-    (() => {
-      const live = formatCloses(r.periods);
-      const text = live || r.hoursText;
-      if (!text) return null;
-      return el('div', { class: 'card-hours' },
-        el('span', { class: 'card-hours-dot' }, '●'),
-        ' ' + text,
-      );
-    })(),
+    el('div', { class: 'card-geo' },
+      el('div', { class: 'card-meta' },
+        el('div', { class: 'card-addr' }, '◉ ' + smartQuotes(r.addr.toUpperCase())),
+        r.buzzLabel ? el('div', { class: 'card-vibe' }, r.buzzLabel) : null,
+        (() => {
+          const live = formatCloses(r.periods);
+          const text = live || r.hoursText;
+          if (!text) return null;
+          return el('div', { class: 'card-hours' },
+            el('span', { class: 'card-hours-dot' }, '●'),
+            ' ' + text,
+          );
+        })(),
+      ),
+      radarEl(r),
+    ),
     showLocWarning && el('button', {
       type: 'button',
       class: 'card-locwarn',

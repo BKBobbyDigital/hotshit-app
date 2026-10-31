@@ -171,6 +171,8 @@ function normalizePlace(place, distanceMi) {
     buzzLabel: null, // set by attachBuzz once we know the full pool context
     blurb: null,
     typeHint: typeGuess,
+    lat: place.location?.latitude ?? null,
+    lon: place.location?.longitude ?? null,
   };
 }
 
