@@ -1,4 +1,4 @@
-const CACHE = 'hotshit-v11';
+const CACHE = 'hotshit-v12';
 const PRECACHE = [
   '/',
   '/index.html',
