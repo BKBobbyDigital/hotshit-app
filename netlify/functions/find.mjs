@@ -137,6 +137,8 @@ async function searchText({ query, lat, lon, radiusMi, minRating, includedType }
         'places.location',
         'places.priceLevel',
         'places.businessStatus',
+        'places.currentOpeningHours.periods',
+        'places.utcOffsetMinutes',
       ].join(','),
     },
     body: JSON.stringify(body),
@@ -147,6 +149,31 @@ async function searchText({ query, lat, lon, radiusMi, minRating, includedType }
   }
   const data = await resp.json();
   return data.places || [];
+}
+
+// Minutes until a place closes, computed in the PLACE's local time (the
+// function runs in UTC). Returns null when unknown / open 24h (no close).
+function minutesUntilClose(place) {
+  const periods = place.currentOpeningHours?.periods;
+  if (!Array.isArray(periods) || !periods.length) return null;
+  const offset = Number.isFinite(place.utcOffsetMinutes) ? place.utcOffsetMinutes : null;
+  if (offset === null) return null;
+  const local = new Date(Date.now() + offset * 60000);
+  const day = local.getUTCDay();
+  const min = local.getUTCHours() * 60 + local.getUTCMinutes();
+  const dayMin = 24 * 60;
+  for (const p of periods) {
+    if (!p?.open || !p?.close) continue;
+    const openMin = p.open.hour * 60 + (p.open.minute || 0);
+    const closeMin = p.close.hour * 60 + (p.close.minute || 0);
+    if (p.open.day === day) {
+      if (p.close.day === day && min >= openMin && min < closeMin) return closeMin - min;
+      if (p.close.day !== day && min >= openMin) return (dayMin - min) + closeMin;
+    } else if (p.close.day === day && p.open.day !== day && min < closeMin) {
+      return closeMin - min;
+    }
+  }
+  return null;
 }
 
 // --- Pool normalization ------------------------------------------------------
@@ -171,6 +198,7 @@ function normalizePlace(place, distanceMi) {
     buzzLabel: null, // set by attachBuzz once we know the full pool context
     blurb: null,
     typeHint: typeGuess,
+    periods: place.currentOpeningHours?.periods ?? null,
     lat: place.location?.latitude ?? null,
     lon: place.location?.longitude ?? null,
   };
@@ -389,6 +417,17 @@ export default async (req) => {
       // Reject-type post-filter (groceries, gas stations, hotels, etc.)
       filtered = filtered.filter((p) => !(p.types || []).some((t) => REJECT_TYPES.has(t)));
       stages.notRejected = filtered.length;
+
+      // Don't suggest places about to close: need time to get there and
+      // actually enjoy it. Unknown hours (null) are kept.
+      const MIN_OPEN_BUFFER = 30;
+      filtered = filtered.filter((p) => {
+        const left = minutesUntilClose(p);
+        if (left === null) return true;
+        const d = haversineMi(lat, lon, p.location.latitude, p.location.longitude);
+        return left >= MIN_OPEN_BUFFER + Math.round(d * 20);
+      });
+      stages.openLongEnough = filtered.length;
 
       // Distance hard-cap: locationBias is soft. Cap at 2x current radius.
       const distCapMi = radiusMi * 2;
